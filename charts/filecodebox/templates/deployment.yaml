@@ -55,9 +55,15 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ include "filecodebox.secretName" . }}
-          {{- with .Values.extraEnv }}
+          {{- if or .Values.trustedProxies .Values.extraEnv }}
           env:
+            {{- with .Values.trustedProxies }}
+            - name: FCB_TRUSTED_PROXIES
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
           livenessProbe:
             httpGet:

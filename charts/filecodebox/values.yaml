@@ -114,6 +114,13 @@ secret:
   redis: {}                   # 附加 FCB_REDIS_* 键值对，如 {PASSWORD: xxx}
   extra: {}                   # 其他任意 FCB_* 键值对(键名原样注入)
 
+# 可信代理网段(CIDR 列表)，以 FCB_TRUSTED_PROXIES(逗号分隔)注入。
+# 反代/Ingress 部署必填：仅当直连对端在网段内才采信 X-Forwarded-For，
+# 否则限流/失败锁定会把代理地址当成所有用户的来源而误伤。
+trustedProxies: []
+#  - 10.0.0.0/8
+#  - 173.245.48.0/20
+
 # 追加原生 env(完整 k8s env 对象数组)
 extraEnv: []
 #  - name: TZ
