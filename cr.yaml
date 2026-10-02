@@ -1,0 +1,4 @@
+chart-dirs:
+  - charts
+index-dir: .cr-index
+release-name-template: "{{ .Name }}-{{ .Version }}"

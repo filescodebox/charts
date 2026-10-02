@@ -1,0 +1,36 @@
+1. 访问 FileCodeBox:
+
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}/
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  export NODE_PORT=$(kubectl --namespace {{ .Release.Namespace }} get -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "filecodebox.fullname" . }})
+  echo http://$NODE_IP:$NODE_PORT/
+{{- else }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "filecodebox.fullname" . }} 8080:{{ .Values.service.port }}
+  然后访问 http://localhost:8080/
+{{- end }}
+
+2. 管理后台: /admin (用户名 admin)
+{{- if eq .Values.secret.adminPassword "admin123" }}
+   ⚠️  当前仍在使用默认管理密码 admin123 —— 生产环境请:
+       helm upgrade --set secret.adminPassword=<强密码> --set secret.production=true
+{{- else }}
+   管理密码已通过 Secret {{ include "filecodebox.secretName" . }} 注入。
+{{- end }}
+
+3. 数据目录: {{ .Values.persistence.mountPath }}
+{{- if .Values.persistence.enabled }}
+   持久卷: {{ default (include "filecodebox.fullname" .) .Values.persistence.existingClaim }}
+{{- else }}
+   ⚠️  未启用持久化(emptyDir)，Pod 重启后 SQLite 数据与上传文件将丢失。
+{{- end }}
+
+4. Prometheus 指标: {{ .Values.metrics.serviceMonitor.path }} (默认开启；
+{{- if .Values.metrics.serviceMonitor.enabled }}
+   ServiceMonitor 已启用)
+{{- else }}
+   ServiceMonitor 未启用，可用 Pod 注解或自行抓取)
+{{- end }}

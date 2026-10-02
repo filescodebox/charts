@@ -1,0 +1,160 @@
+# Default values for filecodebox.
+# 覆盖示例: helm install filecodebox ./charts/filecodebox --set secret.adminPassword=xxx
+
+# ⚠️ 多副本需要外部 MySQL/Postgres + 对象存储(S3/WebDAV)，并使用支持多节点读写的卷；
+#    SQLite 默认部署下请保持 1。
+replicaCount: 1
+
+# 容器内应用监听端口(镜像默认 12345，可用 env FCB_SERVER_PORT 覆盖后同步修改)
+containerPort: 12345
+
+image:
+  repository: ghcr.io/filescodebox/server
+  tag: ""            # 默认取 .Chart.AppVersion(如 v0.1.1)
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+# 镜像内以 app 用户(uid/gid=1000)运行，/app/data 归属 1000:1000
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  # 镜像根文件系统需可写(临时文件/日志回退)；如需收紧请配合 emptyDir 自行评估
+  readOnlyRootFilesystem: false
+
+service:
+  type: ClusterIP
+  port: 12345
+  # nodePort: 30080   # type=NodePort 时可选固定端口
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: filecodebox.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: filecodebox-tls
+  #    hosts:
+  #      - filecodebox.local
+
+# 数据持久化: SQLite 数据库 + 本地上传文件，对应容器内 /app/data。
+# 多副本/生产建议关闭本地存储依赖: database.driver 改 mysql/postgres、storage.type 改 s3/webdav，
+# 并可将 persistence.enabled 设为 false(此时数据写入容器 emptyDir，重启丢失)。
+persistence:
+  enabled: true
+  existingClaim: ""
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+  mountPath: /app/data
+
+# 透传 server 配置(渲染为 ConfigMap，以 subPath 覆盖镜像内 /app/config/config.yaml)。
+# 留空 = 使用镜像内置默认配置。敏感项(jwt_secret/密码)不要写在这里，走下方 secret(环境变量优先级更高)。
+config: {}
+#  server:
+#    mode: release
+#    base_url: https://filecodebox.example.com
+#  database:
+#    driver: mysql
+#    host: mysql.data.svc.cluster.local
+#    port: 3306
+#    db_name: filecodebox
+#  redis:
+#    host: redis.data.svc.cluster.local
+#  storage:
+#    type: s3
+#    s3:
+#      endpoint: https://s3.example.com
+#      region: us-east-1
+#      bucket: filecodebox
+#  observability:
+#    tracing:
+#      enabled: true
+#      endpoint: otel-collector.observability:4317
+#  security:
+#    cors:
+#      allow_origins:
+#        - https://filecodebox.example.com
+
+# 敏感配置 → K8s Secret，以 FCB_* 环境变量注入(优先级高于配置文件)。
+secret:
+  create: true
+  # 已有 Secret(键为 FCB_* 形式)时不再创建；Deployment 改为引用它
+  existingSecret: ""
+  # 留空 = 安装时随机生成并写入 Secret，升级时复用既有值(基于 lookup，Argo CD 等纯渲染工具不生效，需显式指定)
+  jwtSecret: ""
+  adminPassword: "admin123"   # ⚠️ 生产必须覆盖，并建议同时开启 production
+  production: false           # FCB_PRODUCTION=1: 强制校验 secret，生产建议 true
+  serverMode: "release"       # FCB_SERVER_MODE: release | debug | test
+  database: {}                # 附加 FCB_DATABASE_* 键值对，如 {HOST: mysql, PASSWORD: xxx}
+  redis: {}                   # 附加 FCB_REDIS_* 键值对，如 {PASSWORD: xxx}
+  extra: {}                   # 其他任意 FCB_* 键值对(键名原样注入)
+
+# 追加原生 env(完整 k8s env 对象数组)
+extraEnv: []
+#  - name: TZ
+#    value: Asia/Shanghai
+
+metrics:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    path: /metrics
+    # namespace: monitoring
+    labels: {}
+
+probes:
+  liveness:
+    path: /live
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    path: /ready
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+# 部署策略: 留空时自动判断 —— 启用新建持久卷(ReadWriteOnce)用 Recreate，其余 RollingUpdate
+strategy: {}
+#  type: RollingUpdate
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+extraVolumes: []
+extraVolumeMounts: []

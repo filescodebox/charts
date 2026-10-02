@@ -1,0 +1,57 @@
+# chart-testing (ct install) 额外 values：验证 ConfigMap 配置覆盖路径。
+# 注意: config 是对镜像内置 config.yaml 的整体替换，需提供完整结构(对照 server/configs/config.example.yaml)。
+# 保持 sqlite 本地存储，保证 kind 冒烟可真实启动。
+config:
+  server:
+    host: "0.0.0.0"
+    port: 12345
+    mode: release
+    read_timeout: 30
+    write_timeout: 30
+  database:
+    driver: sqlite
+    db_name: "./data/filecodebox.db"
+  log:
+    level: info
+    max_size: 100
+    max_backups: 3
+    max_age: 7
+    compress: true
+  app:
+    name: FileCodeBox
+    datapath: "./data"
+    production: true
+  upload:
+    open_upload: true
+    upload_size: 10485760
+    enable_chunk: true
+    chunk_size: 2097152
+    max_save_seconds: 0
+    require_login: false
+  download:
+    enable_concurrent_download: true
+    max_concurrent_downloads: 10
+    download_timeout: 300
+    require_login: false
+  storage:
+    type: local
+    storage_path: "./data/uploads"
+  user:
+    allow_user_registration: false
+    require_email_verify: false
+    user_upload_size: 52428800
+    user_storage_quota: 1073741824
+    session_expiry_hours: 168
+    max_sessions_per_user: 5
+  observability:
+    metrics:
+      enabled: true
+      path: /metrics
+    tracing:
+      enabled: false
+  security:
+    cors:
+      allow_origins: []
+secret:
+  adminPassword: ci-admin-password
+  production: true
