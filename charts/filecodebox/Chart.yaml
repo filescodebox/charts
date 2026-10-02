@@ -16,3 +16,9 @@ keywords:
 maintainers:
   - name: filescodebox
     url: https://github.com/orgs/filescodebox
+annotations:
+  artifacthub.io/links: |
+    - name: source
+      url: https://github.com/filescodebox/server
+    - name: docs
+      url: https://github.com/filescodebox/FilesCodeBox
