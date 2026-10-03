@@ -55,6 +55,7 @@ jobs:
           helm upgrade --install fcb charts/filecodebox -n fcb-ci --create-namespace \
             -f charts/filecodebox/ci/config-overlay-values.yaml --wait --timeout 5m
           kubectl -n fcb-ci rollout status deploy -l app.kubernetes.io/instance=fcb --timeout=5m
+          helm test fcb -n fcb-ci
 
       - name: Run chart-testing (install)
         if: github.event_name != 'push' && steps.list-changed.outputs.changed == 'true'
