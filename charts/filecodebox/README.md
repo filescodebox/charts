@@ -1,6 +1,6 @@
 # filecodebox
 
-FileCodeBox（文件快递柜 — 匿名口令分享文本/文件）的 Helm Chart，部署 [filescodebox/server](https://github.com/filescodebox/server) 单容器（镜像内置前端静态资源）。
+filescodebox（文件快递柜 — 匿名口令分享文本/文件）的 Helm Chart，部署 [filescodebox/server](https://github.com/filescodebox/server) 单容器（镜像内置前端静态资源）。
 
 ```bash
 helm repo add filescodebox https://filescodebox.github.io/charts

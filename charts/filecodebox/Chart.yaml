@@ -1,14 +1,14 @@
 apiVersion: v2
 name: filecodebox
-description: FileCodeBox 文件快递柜 — 匿名口令分享文本/文件（单容器，镜像内置前端静态资源）
+description: filescodebox 文件快递柜 — 匿名口令分享文本/文件（单容器，镜像内置前端静态资源）
 type: application
-version: 0.1.4
+version: 0.1.5
 appVersion: "v0.1.1"
 kubeVersion: ">=1.22.0-0"
-home: https://github.com/filescodebox/FilesCodeBox
+home: https://github.com/filescodebox/filescodebox
 sources:
   - https://github.com/filescodebox/server
-  - https://github.com/filescodebox/FilesCodeBox
+  - https://github.com/filescodebox/filescodebox
 keywords:
   - file-sharing
   - pastebin
@@ -22,4 +22,4 @@ annotations:
     - name: source
       url: https://github.com/filescodebox/server
     - name: docs
-      url: https://github.com/filescodebox/FilesCodeBox
+      url: https://github.com/filescodebox/filescodebox

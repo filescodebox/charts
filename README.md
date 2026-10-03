@@ -1,13 +1,13 @@
-# FileCodeBox Helm Charts
+# filescodebox Helm Charts
 
-FileCodeBox（文件快递柜 — 匿名口令分享文本/文件）生态的 Kubernetes Helm Chart 仓库。
+filescodebox（文件快递柜 — 匿名口令分享文本/文件）生态的 Kubernetes Helm Chart 仓库。
 独立发版：chart 版本与业务仓库版本解耦，chart 里的 `appVersion` 对应 `server` 镜像 tag。
 
 ## Chart 一览
 
 | Chart | 说明 | Chart 版本 | App 版本 |
 |---|---|---|---|
-| `filecodebox` | 部署 [filescodebox/server](https://github.com/filescodebox/server)（镜像内置前端静态资源，单容器） | 0.1.4 | v0.1.1 |
+| `filecodebox` | 部署 [filescodebox/server](https://github.com/filescodebox/server)（镜像内置前端静态资源，单容器） | 0.1.5 | v0.1.1 |
 
 ## 安装
 
@@ -33,7 +33,7 @@ helm install filecodebox oci://ghcr.io/filescodebox/charts/filecodebox
 从 [Releases](https://github.com/filescodebox/charts/releases) 下载 `filecodebox-<version>.tgz`：
 
 ```bash
-helm install filecodebox ./filecodebox-0.1.4.tgz
+helm install filecodebox ./filecodebox-0.1.5.tgz
 ```
 
 生产环境最少建议覆盖：
@@ -67,4 +67,4 @@ chart `version` 未变化的 push 不会重复发布。
 ## 相关仓库
 
 见组织首页 [filescodebox/.github](https://github.com/filescodebox/.github)：
-hub 装配仓 `FilesCodeBox`、业务核心 `core`、部署壳 `server`、前端 `frontend`、契约 `contracts`、飞牛适配 `filescodebox-fnos`。
+hub 装配仓 `filescodebox`(repo 已由 FilesCodeBox 改名, 本地目录暂为 FilesCodeBox/)、业务核心 `core`、部署壳 `server`、前端 `frontend`、契约 `contracts`、飞牛适配 `filescodebox-fnos`。
