@@ -60,10 +60,12 @@ ServiceAccount 名
 {{- end }}
 
 {{/*
-镜像地址: repository + tag(缺省 AppVersion)
+镜像地址: repository + tag(缺省 AppVersion)。
+ghcr 镜像 tag 无 v 前缀(metadata-action semver 产出 0.6.4 形态)，而 AppVersion
+惯例带 v(v0.6.4)——此处统一剥 v，两种写法都安全；显式 image.tag 同样容忍带 v。
 */}}
 {{- define "filecodebox.image" -}}
-{{- $tag := .Values.image.tag | default .Chart.AppVersion -}}
+{{- $tag := (.Values.image.tag | default .Chart.AppVersion | toString) | trimPrefix "v" -}}
 {{- printf "%s:%s" .Values.image.repository $tag -}}
 {{- end }}
 

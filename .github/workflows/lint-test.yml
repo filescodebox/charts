@@ -28,7 +28,9 @@ jobs:
         uses: helm/chart-testing-action@v2
 
       # list-changed 以 target-branch 为基线，只对 PR 有意义；
-      # push 到 main 时基线即 HEAD，永远为空 —— push 事件直接全量 lint+install
+      # push 到 main 时基线即 HEAD，ct 内部变更检测恒空、lint/install 会 0 秒空跑
+      # (0.2.7 前的 kind 冒烟从未真正执行过)——push 事件改用 --since HEAD~1
+      # 让 ct 以"上一个提交"为基线，本提交动了 chart 就真装一次。
       - name: Run chart-testing (list-changed)
         id: list-changed
         run: |
@@ -39,7 +41,7 @@ jobs:
 
       - name: Run chart-testing (lint)
         if: github.event_name == 'push' || steps.list-changed.outputs.changed == 'true'
-        run: ct lint --target-branch ${{ github.event.repository.default_branch }}
+        run: ct lint ${{ github.event_name == 'push' && '--since HEAD~1' || format('--target-branch {0}', github.event.repository.default_branch) }}
 
       - name: Create kind cluster
         if: github.event_name == 'push' || steps.list-changed.outputs.changed == 'true'
@@ -47,4 +49,4 @@ jobs:
 
       - name: Run chart-testing (install)
         if: github.event_name == 'push' || steps.list-changed.outputs.changed == 'true'
-        run: ct install --target-branch ${{ github.event.repository.default_branch }}
+        run: ct install ${{ github.event_name == 'push' && '--since HEAD~1' || format('--target-branch {0}', github.event.repository.default_branch) }}
