@@ -26,7 +26,7 @@ helm install filecodebox filescodebox/filecodebox \
 helm install filecodebox oci://ghcr.io/filescodebox/charts/filecodebox
 ```
 
-> org 包默认可能为 private：拉取报 401/403 时先在 GitHub org Settings → Packages 将该包改为 public，或 `helm registry login ghcr.io` 后再安装。
+> 该 OCI 包已设为 public，可匿名安装。注意：org 包由 CI（GITHUB_TOKEN）推送时默认 private，且 GitHub 无修改可见性的 API——若将来删除重建，需在 org Settings → Packages 手动改回 public。
 
 方式三：直接使用 Release 制品
 
