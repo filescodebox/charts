@@ -28,10 +28,21 @@ jobs:
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.7.0
-        with:
-          # 在 Pages 之外追加 OCI 分发(oci://ghcr.io/filescodebox/charts/filecodebox)
-          oci_registry_url: "oci://ghcr.io/${{ github.repository }}"
-          oci_username: "${{ github.actor }}"
-          oci_password: "${{ secrets.GITHUB_TOKEN }}"
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+      # v1.7.0 的 action 无 OCI inputs，用 helm 原生 push 在 Pages 之外追加 OCI 分发
+      - name: Login to ghcr
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push chart to OCI
+        run: |
+          shopt -s nullglob
+          pkgs=(.cr-release-packages/*.tgz)
+          if [[ ${#pkgs[@]} -eq 0 ]]; then
+            echo "无新打包的 chart，跳过 OCI 推送"
+            exit 0
+          fi
+          for pkg in "${pkgs[@]}"; do
+            helm push "$pkg" "oci://ghcr.io/${{ github.repository }}"
+          done
