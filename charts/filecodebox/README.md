@@ -6,6 +6,8 @@ FileCodeBox（文件快递柜 — 匿名口令分享文本/文件）的 Helm Cha
 helm repo add filescodebox https://filescodebox.github.io/charts
 helm repo update
 helm install filecodebox filescodebox/filecodebox --namespace filecodebox --create-namespace
+
+# 或 OCI 方式: helm install filecodebox oci://ghcr.io/filescodebox/charts/filecodebox
 ```
 
 ## 生产建议

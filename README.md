@@ -7,7 +7,7 @@ FileCodeBox（文件快递柜 — 匿名口令分享文本/文件）生态的 Ku
 
 | Chart | 说明 | Chart 版本 | App 版本 |
 |---|---|---|---|
-| `filecodebox` | 部署 [filescodebox/server](https://github.com/filescodebox/server)（镜像内置前端静态资源，单容器） | 0.1.0 | v0.1.1 |
+| `filecodebox` | 部署 [filescodebox/server](https://github.com/filescodebox/server)（镜像内置前端静态资源，单容器） | 0.1.2 | v0.1.1 |
 
 ## 安装
 
@@ -20,12 +20,20 @@ helm install filecodebox filescodebox/filecodebox \
   --namespace filecodebox --create-namespace
 ```
 
-方式二：直接使用 Release 制品
+方式二：OCI 制品（ghcr.io，与 Pages 同步发布）
+
+```bash
+helm install filecodebox oci://ghcr.io/filescodebox/charts/filecodebox
+```
+
+> org 包默认可能为 private：拉取报 401/403 时先在 GitHub org Settings → Packages 将该包改为 public，或 `helm registry login ghcr.io` 后再安装。
+
+方式三：直接使用 Release 制品
 
 从 [Releases](https://github.com/filescodebox/charts/releases) 下载 `filecodebox-<version>.tgz`：
 
 ```bash
-helm install filecodebox ./filecodebox-0.1.0.tgz
+helm install filecodebox ./filecodebox-0.1.2.tgz
 ```
 
 生产环境最少建议覆盖：
