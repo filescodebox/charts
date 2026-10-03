@@ -48,7 +48,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | `service.type` / `port` / `nodePort` | Service | `ClusterIP` / `12345` / `""` |
 | `ingress.enabled` / `className` / `annotations` / `hosts` / `tls` | Ingress（networking.k8s.io/v1） | `false` |
 | `metrics.serviceMonitor.enabled` | Prometheus Operator ServiceMonitor | `false` |
-| `metrics.serviceMonitor.interval` / `path` / `namespace` / `labels` | ServiceMonitor 细项 | `30s` / `/metrics` / `""` / `{}` |
+| `metrics.serviceMonitor.interval` / `scrapeTimeout` / `path` / `namespace` / `labels` | ServiceMonitor 细项 | `30s` / `""` / `/metrics` / `""` / `{}` |
 
 ### 存储
 
@@ -56,7 +56,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 |---|---|---|
 | `persistence.enabled` | 持久化 SQLite + 本地上传文件（容器 `/app/data`） | `true` |
 | `persistence.existingClaim` | 使用已有 PVC | `""` |
-| `persistence.storageClass` / `accessModes` / `size` | PVC 规格 | `""` / `[ReadWriteOnce]` / `5Gi` |
+| `persistence.storageClass` / `accessModes` / `size` | PVC 规格 | `""` / `[ReadWriteOnce]` / `10Gi` |
 
 ### 配置注入
 
@@ -71,7 +71,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | `secret.database` / `secret.redis` | 追加 `FCB_DATABASE_*` / `FCB_REDIS_*` 键值对 | `{}` |
 | `secret.extra` | 其他任意 `FCB_*` 键值对 | `{}` |
 | `trustedProxies` | 可信代理网段 CIDR 列表，以 `FCB_TRUSTED_PROXIES` 注入；反代/Ingress 部署必填 | `[]` |
-| `probes.liveness` / `probes.readiness` | 探针（默认 `/live`、`/ready`） | 见 values.yaml |
+| `probes.liveness` / `probes.readiness` / `probes.startup` | 探针（默认 `/live`、`/readyz`，startupProbe 慢启动保护默认开启） | 见 values.yaml |
 
 > 环境变量优先级高于配置文件，敏感项一律走 `secret.*`；`config.*` 只放非敏感配置。
 
@@ -108,6 +108,10 @@ secret:
 ingress:
   enabled: true
   className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
   hosts:
     - host: fcb.example.com
       paths:

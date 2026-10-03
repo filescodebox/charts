@@ -49,6 +49,11 @@ service:
 ingress:
   enabled: false
   className: ""
+  # 文件上传场景建议(nginx ingress): proxy-body-size 按需放大, 并加长读写超时
+  # annotations:
+  #   nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+  #   nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+  #   nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
   annotations: {}
   hosts:
     - host: filecodebox.local
@@ -69,7 +74,7 @@ persistence:
   storageClass: ""
   accessModes:
     - ReadWriteOnce
-  size: 5Gi
+  size: 10Gi
   mountPath: /app/data
 
 # 透传 server 配置(渲染为 ConfigMap，以 subPath 覆盖镜像内 /app/config/config.yaml)。
@@ -130,6 +135,7 @@ metrics:
   serviceMonitor:
     enabled: false
     interval: 30s
+    scrapeTimeout: ""
     path: /metrics
     # namespace: monitoring
     labels: {}
@@ -138,21 +144,28 @@ probes:
   liveness:
     path: /live
     initialDelaySeconds: 10
-    periodSeconds: 15
+    periodSeconds: 20
     timeoutSeconds: 3
     failureThreshold: 3
   readiness:
-    path: /ready
+    path: /readyz   # 依赖(DB)就绪才接流量
     initialDelaySeconds: 5
     periodSeconds: 10
     timeoutSeconds: 3
     failureThreshold: 3
+  # 慢启动保护(PVC 挂载/首次迁移): 通过前不启动 liveness 计数, 最多容忍 ~3 分钟
+  startup:
+    enabled: true
+    path: /live
+    periodSeconds: 10
+    failureThreshold: 18
 
 resources:
   requests:
     cpu: 100m
     memory: 128Mi
   limits:
+    cpu: "1"
     memory: 512Mi
 
 # 部署策略: 留空时自动判断 —— 启用新建持久卷(ReadWriteOnce)用 Recreate，其余 RollingUpdate
