@@ -1,0 +1,134 @@
+{{- if .Values.redis.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "filecodebox.redis.fullname" . }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.redis.persistence.accessModes | nindent 4 }}
+  {{- with .Values.redis.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.redis.persistence.size }}
+  {{- with .Values.redis.persistence.existingClaim }}
+  # existingClaim 指定时上面 size/accessModes 仅作声明,实际绑定已有 PVC 由 k8s 处理
+  volumeName: {{ . }}
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "filecodebox.redis.fullname" . }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # RWO 卷不支持双挂载
+  selector:
+    matchLabels:
+      {{- include "filecodebox.data.selectorLabels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "filecodebox.data.selectorLabels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 999   # redis 镜像内 uid/gid=999,保证卷可写
+      containers:
+        - name: redis
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: {{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag | default "7-alpine" }}
+          imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
+          {{- if .Values.redis.auth.password }}
+          args: ["redis-server", "--appendonly", "yes", "--requirepass", {{ .Values.redis.auth.password | quote }}]
+          {{- else }}
+          args: ["redis-server", "--appendonly", "yes"]
+          {{- end }}
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          {{- if .Values.redis.auth.password }}
+          livenessProbe:
+            exec:
+              command: ["CMD-SHELL", "redis-cli -a {{ .Values.redis.auth.password }} ping | grep -q PONG"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["CMD-SHELL", "redis-cli -a {{ .Values.redis.auth.password }} ping | grep -q PONG"]
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          {{- else }}
+          livenessProbe:
+            exec:
+              command: ["CMD", "redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["CMD", "redis-cli", "ping"]
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          {{- end }}
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ default (include "filecodebox.redis.fullname" .) .Values.redis.persistence.existingClaim }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "filecodebox.redis.fullname" . }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "filecodebox.data.selectorLabels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+{{- end }}

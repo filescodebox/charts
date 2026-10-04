@@ -34,6 +34,22 @@
    ⚠️  未启用持久化(emptyDir)，Pod 重启后 SQLite 数据与上传文件将丢失。
 {{- end }}
 
+4. 数据面服务:
+{{- if .Values.redis.enabled }}
+   Redis: 内置 {{ include "filecodebox.redis.fullname" . }} (已自动注入 FCB_REDIS_HOST;{{ if .Values.redis.auth.password }}已启用密码{{ else }}无密码,仅限集群内{{ end }}){{ if hasKey (.Values.config | default dict) "redis" }} ⚠️ config.redis 已显式配置,内置实例未接线{{ end }}
+{{- else }}
+   Redis: 未启用 —— 匿名取件/文件直传分享等依赖 Redis 的功能将降级,
+   生产请设 config.redis.host 指向外部 Redis。
+{{- end }}
+{{- if .Values.mysql.enabled }}
+   MySQL: 内置 {{ include "filecodebox.mysql.fullname" . }} (自动注入 FCB_DATABASE_*, 密码在 Secret {{ include "filecodebox.mysql.fullname" . }})
+{{- else if .Values.postgresql.enabled }}
+   PostgreSQL: 内置 {{ include "filecodebox.postgresql.fullname" . }} (自动注入 FCB_DATABASE_*, 密码在 Secret {{ include "filecodebox.postgresql.fullname" . }})
+{{- else }}
+   数据库: SQLite(/app/data); 多副本/生产可用 mysql.enabled / postgresql.enabled 开内置实例,
+   或 config.database + secret.database 指向外部 MySQL/PostgreSQL。
+{{- end }}
+
 4. Prometheus 指标: {{ .Values.metrics.serviceMonitor.path }} (默认开启；
 {{- if .Values.metrics.serviceMonitor.enabled }}
    ServiceMonitor 已启用)

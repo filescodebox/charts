@@ -1,0 +1,113 @@
+{{- if .Values.postgresql.enabled }}
+{{- $secretName := include "filecodebox.postgresql.fullname" . }}
+{{- $userPw := include "filecodebox.stablePassword" (dict "secretName" $secretName "key" "user-password" "explicit" .Values.postgresql.auth.userPassword "Release" .Release) }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "postgresql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+type: Opaque
+stringData:
+  user-password: {{ $userPw | quote }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "postgresql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: {{ $secretName }}
+  selector:
+    matchLabels:
+      {{- include "filecodebox.data.selectorLabels" (dict "component" "postgresql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "filecodebox.data.selectorLabels" (dict "component" "postgresql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        fsGroup: 999   # postgres 镜像内 uid/gid=999,保证卷可写
+      containers:
+        - name: postgresql
+          image: {{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag | default "17-alpine" }}
+          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.auth.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: user-password
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command: ["CMD-SHELL", "pg_isready -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command: ["CMD-SHELL", "pg_isready -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 12
+          resources:
+            {{- toYaml .Values.postgresql.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.postgresql.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "postgresql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: postgresql
+      protocol: TCP
+      name: postgresql
+  selector:
+    {{- include "filecodebox.data.selectorLabels" (dict "component" "postgresql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+{{- end }}

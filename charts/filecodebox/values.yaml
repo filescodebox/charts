@@ -184,6 +184,87 @@ trustedProxies: []
 #  - 10.0.0.0/8
 #  - 173.245.48.0/20
 
+# ── 内置数据面服务 ──────────────────────────────────────────────────
+# Redis: 匿名取件码映射/预签名/分布式限流/JWT 黑名单强依赖(缺失时这些功能
+# 降级)。默认开启=与 docker compose 形态对齐、开箱即用;单副本+AOF+PVC。
+# 生产/多副本建议 redis.enabled=false + config.redis.host 指向外部 Redis
+# (config 里显式配置了 redis 段时本开关自动让位,不注入覆盖 env)。
+# 三个组件均继承顶层 nodeSelector/tolerations/affinity(镜像手动导入的
+# 离线集群注意把镜像导入到被调度的节点)。
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+  auth:
+    # 留空 = 无密码(仅集群内网可达);设置后开启 requirepass 并注入 FCB_REDIS_PASSWORD
+    password: ""
+  persistence:
+    enabled: true
+    existingClaim: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 32m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# 内置 MySQL 8.4(默认关): 开启即部署单副本 StatefulSet 并自动注入
+# FCB_DATABASE_DRIVER/HOST/PORT/USER/PASSWORD/DB_NAME(env 优先级高于 config)。
+# 生产建议外部 MySQL + config/secret 显式配置,保持本开关 false。
+# 离线集群启用前先导入 mysql:8.4 镜像到被调度节点。
+mysql:
+  enabled: false
+  image:
+    repository: mysql
+    tag: "8.4"
+    pullPolicy: IfNotPresent
+  auth:
+    username: filecodebox
+    database: filecodebox
+    # 留空 = 安装时随机生成并写入 Secret,升级复用既有值(lookup);
+    # Argo CD 等纯渲染工具不生效,需显式指定
+    userPassword: ""
+    rootPassword: ""
+  persistence:
+    storageClass: ""
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+# 内置 PostgreSQL 17(默认关): 语义同 mysql。
+postgresql:
+  enabled: false
+  image:
+    repository: postgres
+    tag: "17-alpine"
+    pullPolicy: IfNotPresent
+  auth:
+    username: filecodebox
+    database: filecodebox
+    userPassword: ""
+  persistence:
+    storageClass: ""
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
 # 追加原生 env(完整 k8s env 对象数组)
 extraEnv: []
 #  - name: TZ

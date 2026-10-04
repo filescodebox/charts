@@ -35,6 +35,19 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- /* 数据面接线: 内置 redis/mysql/postgresql → FCB_* env(env 优先级高于 config) */}}
+      {{- $wireRedis := and .Values.redis.enabled (not (hasKey (.Values.config | default dict) "redis")) }}
+      {{- if $wireRedis }}
+      {{- /* core 仅在启动时探测 redis,连不上即降级——等 redis 就绪再起后端 */}}
+      initContainers:
+        - name: wait-redis
+          image: busybox:1.36
+          command: ["sh", "-c", "until nc -z {{ include "filecodebox.redis.fullname" . }} 6379; do echo waiting for redis; sleep 2; done"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -55,7 +68,8 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ include "filecodebox.secretName" . }}
-          {{- if or .Values.trustedProxies .Values.extraEnv }}
+          {{- $wireRedis := and .Values.redis.enabled (not (hasKey (.Values.config | default dict) "redis")) }}
+          {{- if or .Values.trustedProxies .Values.extraEnv $wireRedis .Values.mysql.enabled .Values.postgresql.enabled }}
           env:
             {{- with .Values.trustedProxies }}
             - name: FCB_TRUSTED_PROXIES
@@ -63,6 +77,50 @@ spec:
             {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if $wireRedis }}
+            - name: FCB_REDIS_HOST
+              value: {{ include "filecodebox.redis.fullname" . }}
+            - name: FCB_REDIS_PORT
+              value: "6379"
+            {{- if .Values.redis.auth.password }}
+            - name: FCB_REDIS_PASSWORD
+              value: {{ .Values.redis.auth.password | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.mysql.enabled }}
+            - name: FCB_DATABASE_DRIVER
+              value: mysql
+            - name: FCB_DATABASE_HOST
+              value: {{ include "filecodebox.mysql.fullname" . }}
+            - name: FCB_DATABASE_PORT
+              value: "3306"
+            - name: FCB_DATABASE_USER
+              value: {{ .Values.mysql.auth.username | quote }}
+            - name: FCB_DATABASE_DB_NAME
+              value: {{ .Values.mysql.auth.database | quote }}
+            - name: FCB_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "filecodebox.mysql.fullname" . }}
+                  key: user-password
+            {{- end }}
+            {{- if .Values.postgresql.enabled }}
+            - name: FCB_DATABASE_DRIVER
+              value: postgres
+            - name: FCB_DATABASE_HOST
+              value: {{ include "filecodebox.postgresql.fullname" . }}
+            - name: FCB_DATABASE_PORT
+              value: "5432"
+            - name: FCB_DATABASE_USER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: FCB_DATABASE_DB_NAME
+              value: {{ .Values.postgresql.auth.database | quote }}
+            - name: FCB_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "filecodebox.postgresql.fullname" . }}
+                  key: user-password
             {{- end }}
           {{- end }}
           livenessProbe:

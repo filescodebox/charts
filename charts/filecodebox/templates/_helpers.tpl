@@ -128,3 +128,59 @@ Secret 名: 优先 existingSecret
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+数据面组件完整资源名(redis/mysql/postgresql;独立 name 后缀,与后端 Service/ServiceMonitor 选择器隔离)
+*/}}
+{{- define "filecodebox.redis.fullname" -}}
+{{- printf "%s-redis" (include "filecodebox.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "filecodebox.mysql.fullname" -}}
+{{- printf "%s-mysql" (include "filecodebox.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "filecodebox.postgresql.fullname" -}}
+{{- printf "%s-postgresql" (include "filecodebox.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+数据面组件选择器标签(name 带 -<组件> 后缀)
+*/}}
+{{- define "filecodebox.data.selectorLabels" -}}
+{{- $component := .component -}}
+app.kubernetes.io/name: {{ include "filecodebox.name" $ }}-{{ $component }}
+app.kubernetes.io/instance: {{ $.Release.Name }}
+{{- end }}
+
+{{/*
+数据面组件通用标签
+*/}}
+{{- define "filecodebox.data.labels" -}}
+{{- $component := .component -}}
+helm.sh/chart: {{ include "filecodebox.chart" $ }}
+{{ include "filecodebox.data.selectorLabels" (dict "component" $component "Release" $.Release "Values" $.Values "Chart" $.Chart "Template" $.Template) }}
+app.kubernetes.io/component: {{ $component }}
+{{- if $.Chart.AppVersion }}
+app.kubernetes.io/version: {{ $.Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ $.Release.Service }}
+{{- end }}
+
+{{/*
+稳定随机密码: 用户显式值 > 集群中既有 Secret 的值 > 随机生成(24 位)。
+lookup 仅在真实集群中生效(helm upgrade 稳定);纯渲染工具请显式设置密码。
+入参 dict: secretName / key / explicit(用户显式值,可空)
+*/}}
+{{- define "filecodebox.stablePassword" -}}
+{{- if .explicit }}
+{{- .explicit }}
+{{- else }}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace .secretName }}
+{{- if and $existing $existing.data (hasKey $existing.data .key) }}
+{{- index $existing.data .key | b64dec }}
+{{- else }}
+{{- randAlphaNum 24 }}
+{{- end }}
+{{- end }}
+{{- end }}

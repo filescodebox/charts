@@ -4,6 +4,8 @@ filescodebox（文件快递柜 — 匿名口令分享文本/文件）的 Helm Ch
 
 架构（0.3+）：**前后端分离两容器** —— `frontend`（[ghcr.io/filescodebox/frontend](https://github.com/filescodebox/frontend)，nginx 静态资源 + API 反代）与 `server`（[ghcr.io/filescodebox/server](https://github.com/filescodebox/server)，API/数据，携带 PVC）。Ingress/NodePort 指向 frontend Service，API 请求由其反代后端；两镜像同一版本列车（`frontend.image.tag` 缺省同 AppVersion，由 server 仓 release 工作流同步发布）。server 镜像为纯后端（0.9.0 起不含前端静态资源）；docker compose 模板同为前后端分离编排；fnOS 应用为独立打包，不受影响。
 
+内置数据面服务（0.4+）：`redis.enabled` 默认开启（单副本 + AOF + PVC，自动注入 `FCB_REDIS_HOST`，开箱即用）；`mysql.enabled` / `postgresql.enabled` 默认关闭，开启即部署单副本 StatefulSet 并自动注入 `FCB_DATABASE_*`（密码自动生成存 Secret，可用 `*.auth.*Password` 显式指定）。生产/多副本建议关闭内置实例、`config.database` + `secret.database` 指向外部服务。
+
 ```bash
 helm repo add filescodebox https://filescodebox.github.io/charts
 helm repo update
@@ -18,7 +20,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 - `--set secret.production=true` 开启 secret 强校验；`FCB_JWT_SECRET` 全环境强制且要求 ≥32 位强随机（chart 自动生成的值已满足，显式传入短值会拒绝启动）
 - **反代/Ingress 部署必须设置 `trustedProxies`**（如 `--set trustedProxies[0]=10.0.0.0/8`），否则应用不采信 X-Forwarded-For，限流/失败锁定会按代理地址误伤所有用户
 - 通过内网 MinIO/WebDAV 使用对象存储时，设置 `config.security.ssrf.allow_private_networks: true`（或 env `FCB_SSRF_ALLOW_PRIVATE=true`）
-- 数据库切外部 MySQL/Postgres（`config.database.driver` + `secret.database` 注入密码），存储切 S3/WebDAV（`config.storage`）后，才考虑 `replicaCount > 1`；多实例建议启用 Redis 并设置 `config.rate_limit.use_redis: true` 让限流计数跨实例共享
+- 数据库切外部 MySQL/Postgres（`config.database.driver` + `secret.database` 注入密码；或直接开 `mysql.enabled` / `postgresql.enabled` 用内置单副本实例），存储切 S3/WebDAV（`config.storage`）后，才考虑 `replicaCount > 1`；多实例建议外部 Redis 并设 `config.rate_limit.use_redis: true` 让限流计数跨实例共享
 - Ingress 挂 TLS，并设置 `config.server.base_url` 为对外地址（分享链接生成用）；S3 直传/直下（`download.s3_direct_download`）需给存储桶配置 CORS
 - `config.security.cors.allow_origins` 显式列出可信域名；预签名签名密钥如需独立于 JWT，可用 `secret.extra` 注入 `FCB_PRESIGN_SIGNING_KEY`（缺省复用 jwtSecret）
 
@@ -66,6 +68,18 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | `frontend.extraEnv` | 追加 env（如覆盖 `CLIENT_MAX_BODY_SIZE`） | `[]` |
 
 > 反代上游自动指向本 release 的 server Service（`BACKEND_HOST`/`BACKEND_PORT` 自动注入），无需配置。
+
+### 数据面（redis / mysql / postgresql）
+
+| 参数 | 说明 | 默认值 |
+|---|---|---|
+| `redis.enabled` | 内置 Redis（匿名取件码等强依赖）；config 显式配置 `redis` 段时自动让位 | `true` |
+| `redis.image.*` / `auth.password` / `persistence.*` / `resources` | 镜像 `redis:7-alpine`；密码留空=无密码(仅集群内)；AOF 持久化 1Gi | 见 values.yaml |
+| `mysql.enabled` / `postgresql.enabled` | 内置 MySQL 8.4 / PostgreSQL 17 单副本 StatefulSet（默认关）；开启即自动注入 `FCB_DATABASE_*` | `false` |
+| `mysql.auth.*` / `postgresql.auth.*` | `username`(默认 filecodebox)、`database`(默认 filecodebox)、密码留空=随机生成并跨升级复用 | 见 values.yaml |
+| `mysql.persistence.size` / `postgresql.persistence.size` | 数据卷 | `10Gi` |
+
+> 内置实例接线优先级高于 `config`（env 覆盖）；三个组件继承顶层 `nodeSelector`/`tolerations`/`affinity`，离线集群需把对应镜像导入到被调度节点。
 
 ### 存储
 

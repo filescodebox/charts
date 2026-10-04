@@ -1,0 +1,118 @@
+{{- if .Values.mysql.enabled }}
+{{- $secretName := include "filecodebox.mysql.fullname" . }}
+{{- $userPw := include "filecodebox.stablePassword" (dict "secretName" $secretName "key" "user-password" "explicit" .Values.mysql.auth.userPassword "Release" .Release) }}
+{{- $rootPw := include "filecodebox.stablePassword" (dict "secretName" $secretName "key" "root-password" "explicit" .Values.mysql.auth.rootPassword "Release" .Release) }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+type: Opaque
+stringData:
+  root-password: {{ $rootPw | quote }}
+  user-password: {{ $userPw | quote }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: {{ $secretName }}
+  selector:
+    matchLabels:
+      {{- include "filecodebox.data.selectorLabels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "filecodebox.data.selectorLabels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: mysql
+          image: {{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag | default "8.4" }}
+          imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: root-password
+            - name: MYSQL_DATABASE
+              value: {{ .Values.mysql.auth.database | quote }}
+            - name: MYSQL_USER
+              value: {{ .Values.mysql.auth.username | quote }}
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: user-password
+          ports:
+            - name: mysql
+              containerPort: 3306
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$MYSQL_ROOT_PASSWORD\""]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$MYSQL_ROOT_PASSWORD\""]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 12   # 首次初始化(建库建用户)最长 ~1 分钟
+          resources:
+            {{- toYaml .Values.mysql.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.mysql.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.mysql.persistence.size }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3306
+      targetPort: mysql
+      protocol: TCP
+      name: mysql
+  selector:
+    {{- include "filecodebox.data.selectorLabels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+{{- end }}
