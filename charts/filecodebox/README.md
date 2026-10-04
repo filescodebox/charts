@@ -87,7 +87,16 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 
 **不使用 / 关闭内置 S3**：默认就是关闭（存储走本地 `local`）。启用过想关：`--set s3.enabled=false` 升级即可移除 StatefulSet，桶数据仍在 PVC 中（VCT 创建的 PVC 不会被 helm 删除）；想**部署但不接线**（例如复用内置桶给其他程序），给 `config.storage` 显式配置任意完整存储段即自动让位。预签名直传/直下需桶端点对浏览器可达——内置实例端点在集群内，这类场景请外接 S3 并以 `config.storage` 指向对外端点（凭据/桶可复用内置实例）。
 
-> 内置实例接线优先级高于 `config`（env 覆盖）；三个组件继承顶层 `nodeSelector`/`tolerations`/`affinity`，离线集群需把对应镜像导入到被调度节点。
+### P2P 联邦（可选，1.3.4+）
+
+| 参数 | 说明 | 默认值 |
+|---|---|---|
+| `p2p.enabled` | 部署联邦注册中心单副本（节点注册/口令联邦路由，内存存储无状态）并自动注入 `FCB_FEDERATION_*`；`config.federation` 显式配置时让位。**需 server 镜像 ≥ 0.10.0**（federation 域服务在 core v0.8.0） | `false` |
+| `p2p.image.*` | ghcr.io/filescodebox/p2p（public，离线集群需导入） | `0.1` |
+| `p2p.publicURL` | 本站对外地址（取件方直连下载用）；留空自动取 `config.server.base_url` | `""` |
+| `p2p.adminPassword` | p2p 管理 API 口令；留空 = 管理 API 禁用 | `""` |
+
+> 内置实例接线优先级高于 `config`（env 覆盖）；数据面组件继承顶层 `nodeSelector`/`tolerations`/`affinity`，离线集群需把对应镜像导入到被调度节点。
 
 ### 存储
 
