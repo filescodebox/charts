@@ -70,6 +70,42 @@ ghcr 镜像 tag 无 v 前缀(metadata-action semver 产出 0.6.4 形态)，而 A
 {{- end }}
 
 {{/*
+前端组件完整资源名(前后端分离部署；后端资源名保持 fullname 不变以兼容升级)
+*/}}
+{{- define "filecodebox.frontend.fullname" -}}
+{{- printf "%s-frontend" (include "filecodebox.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+前端选择器标签(name 带 -frontend 后缀，与后端 Service/ServiceMonitor 选择器天然隔离)
+*/}}
+{{- define "filecodebox.frontend.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "filecodebox.name" . }}-frontend
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+前端通用标签
+*/}}
+{{- define "filecodebox.frontend.labels" -}}
+helm.sh/chart: {{ include "filecodebox.chart" . }}
+{{ include "filecodebox.frontend.selectorLabels" . }}
+app.kubernetes.io/component: frontend
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+前端镜像地址: 与 server 镜像同一版本列车(缺省 AppVersion,剥 v 前缀)
+*/}}
+{{- define "filecodebox.frontend.image" -}}
+{{- $tag := (.Values.frontend.image.tag | default .Chart.AppVersion | toString) | trimPrefix "v" -}}
+{{- printf "%s:%s" .Values.frontend.image.repository $tag -}}
+{{- end }}
+
+{{/*
 Secret 名: 优先 existingSecret
 */}}
 {{- define "filecodebox.secretName" -}}

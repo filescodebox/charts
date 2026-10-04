@@ -1,5 +1,10 @@
 # Default values for filecodebox.
 # 覆盖示例: helm install filecodebox ./charts/filecodebox --set secret.adminPassword=xxx
+#
+# 架构(0.3+): 前后端分离两容器 ——
+#   frontend Deployment(nginx: 静态资源 + API 反代) → server Deployment(API/数据)
+#   Ingress 只指 frontend Service；server 镜像仍内嵌前端，供 compose/fnos 单容器模式。
+#   两镜像同一版本列车(frontend.tag 缺省同 AppVersion，由 server 仓 release 同步发布)。
 
 # ⚠️ 多副本需要外部 MySQL/Postgres + 对象存储(S3/WebDAV)，并使用支持多节点读写的卷；
 #    SQLite 默认部署下请保持 1。
@@ -12,6 +17,51 @@ image:
   repository: ghcr.io/filescodebox/server
   tag: ""            # 默认取 .Chart.AppVersion 并剥 v 前缀(ghcr tag 为 0.6.4 形态,无 v)
   pullPolicy: IfNotPresent
+
+# 前端容器(nginx 静态 + API 反代): 无状态,不挂 PVC;后端地址自动指向本 release 的
+# server Service,无需配置。frontend.tag 缺省同 AppVersion(与 server 同版本列车)。
+frontend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/filescodebox/frontend
+    tag: ""
+    pullPolicy: IfNotPresent
+  containerPort: 8080   # 镜像 nginx 以非 root(uid 101)监听 8080
+  service:
+    type: ClusterIP
+    port: 80
+    # nodePort: 30080   # type=NodePort 时可选固定端口
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 101     # nginx-unprivileged 镜像内置 uid
+    runAsGroup: 101
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  probes:
+    liveness:
+      path: /
+      initialDelaySeconds: 5
+      periodSeconds: 20
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readiness:
+      path: /          # nginx 渲染配置在启动前完成,就绪即静态服务可用
+      initialDelaySeconds: 2
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 128Mi
+  extraEnv: []
 
 imagePullSecrets: []
 
@@ -42,11 +92,15 @@ securityContext:
   readOnlyRootFilesystem: false
 
 service:
+  # 后端(server) Service: 仅被 frontend 反代与 metrics 抓取直连,不对外;
+  # 对外入口 = frontend.service(NodePort/Ingress/直连均走前端容器)
   type: ClusterIP
   port: 12345
   # nodePort: 30080   # type=NodePort 时可选固定端口
 
 ingress:
+  # Ingress 指向 frontend Service(nginx 容器), API 请求由其反代到后端;
+  # 大上传走分片通道,超时/体积注解放这里即可作用于整条链路
   enabled: false
   className: ""
   # 文件上传场景建议(nginx ingress): proxy-body-size 按需放大, 并加长读写超时
@@ -122,6 +176,9 @@ secret:
 # 可信代理网段(CIDR 列表)，以 FCB_TRUSTED_PROXIES(逗号分隔)注入。
 # 反代/Ingress 部署必填：仅当直连对端在网段内才采信 X-Forwarded-For，
 # 否则限流/失败锁定会把代理地址当成所有用户的来源而误伤。
+# 前后端分离架构下后端直连对端 = frontend nginx Pod，XFF 链 =
+# 客户端 → Ingress → frontend Pod → server，因此需同时覆盖
+# Pod 网段(默认 10.42.0.0/16 / 10.244.0.0/16 一类)与 Ingress controller 网段。
 trustedProxies: []
 #  - 10.0.0.0/8
 #  - 173.245.48.0/20

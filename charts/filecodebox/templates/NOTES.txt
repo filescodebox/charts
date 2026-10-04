@@ -1,15 +1,15 @@
-1. 访问 FileCodeBox:
+1. 访问 FileCodeBox (前后端分离: 入口=frontend nginx 容器, API 由其反代后端):
 
 {{- if .Values.ingress.enabled }}
 {{- range .Values.ingress.hosts }}
   http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}/
 {{- end }}
-{{- else if contains "NodePort" .Values.service.type }}
+{{- else if contains "NodePort" .Values.frontend.service.type }}
   export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
-  export NODE_PORT=$(kubectl --namespace {{ .Release.Namespace }} get -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "filecodebox.fullname" . }})
+  export NODE_PORT=$(kubectl --namespace {{ .Release.Namespace }} get -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "filecodebox.frontend.fullname" . }})
   echo http://$NODE_IP:$NODE_PORT/
 {{- else }}
-  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "filecodebox.fullname" . }} 8080:{{ .Values.service.port }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "filecodebox.frontend.fullname" . }} 8080:{{ .Values.frontend.service.port }}
   然后访问 http://localhost:8080/
 {{- end }}
 

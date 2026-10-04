@@ -1,6 +1,8 @@
 # filecodebox
 
-filescodebox（文件快递柜 — 匿名口令分享文本/文件）的 Helm Chart，部署 [filescodebox/server](https://github.com/filescodebox/server) 单容器（镜像内置前端静态资源）。
+filescodebox（文件快递柜 — 匿名口令分享文本/文件）的 Helm Chart。
+
+架构（0.3+）：**前后端分离两容器** —— `frontend`（[ghcr.io/filescodebox/frontend](https://github.com/filescodebox/frontend)，nginx 静态资源 + API 反代）与 `server`（[ghcr.io/filescodebox/server](https://github.com/filescodebox/server)，API/数据，携带 PVC）。Ingress/NodePort 指向 frontend Service，API 请求由其反代后端；两镜像同一版本列车（`frontend.image.tag` 缺省同 AppVersion，由 server 仓 release 工作流同步发布）。server 镜像仍内嵌前端静态资源，供 docker compose / fnOS 单容器模式使用。
 
 ```bash
 helm repo add filescodebox https://filescodebox.github.io/charts
@@ -45,10 +47,25 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 
 | 参数 | 说明 | 默认值 |
 |---|---|---|
-| `service.type` / `port` / `nodePort` | Service | `ClusterIP` / `12345` / `""` |
-| `ingress.enabled` / `className` / `annotations` / `hosts` / `tls` | Ingress（networking.k8s.io/v1） | `false` |
+| `service.type` / `port` / `nodePort` | 后端 Service（仅 frontend 反代与 metrics 抓取直连，不对外） | `ClusterIP` / `12345` / `""` |
+| `frontend.service.type` / `port` / `nodePort` | 前端 Service（对外入口，Ingress/NodePort 均指向它） | `ClusterIP` / `80` / `""` |
+| `ingress.enabled` / `className` / `annotations` / `hosts` / `tls` | Ingress（networking.k8s.io/v1，backend=frontend Service） | `false` |
 | `metrics.serviceMonitor.enabled` | Prometheus Operator ServiceMonitor | `false` |
 | `metrics.serviceMonitor.interval` / `scrapeTimeout` / `path` / `namespace` / `labels` | ServiceMonitor 细项 | `30s` / `""` / `/metrics` / `""` / `{}` |
+
+### 前端（frontend）
+
+| 参数 | 说明 | 默认值 |
+|---|---|---|
+| `frontend.replicaCount` | 前端副本数（无状态，可独立扩缩） | `1` |
+| `frontend.image.repository` / `tag` / `pullPolicy` | 前端镜像；tag 缺省同 AppVersion（与 server 同版本列车） | `ghcr.io/filescodebox/frontend` / `""` / `IfNotPresent` |
+| `frontend.containerPort` | nginx 监听端口（镜像非 root 固定 8080） | `8080` |
+| `frontend.securityContext` | 前端容器安全上下文（镜像 uid/gid 101） | 非 root、drop ALL |
+| `frontend.probes.liveness` / `readiness` | 前端探针（GET `/`） | 见 values.yaml |
+| `frontend.resources` | 前端资源限额 | 64Mi~128Mi |
+| `frontend.extraEnv` | 追加 env（如覆盖 `CLIENT_MAX_BODY_SIZE`） | `[]` |
+
+> 反代上游自动指向本 release 的 server Service（`BACKEND_HOST`/`BACKEND_PORT` 自动注入），无需配置。
 
 ### 存储
 

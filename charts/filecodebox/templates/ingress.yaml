@@ -27,7 +27,8 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ include "filecodebox.fullname" $ }}
+                # 流量统一进 frontend(nginx)容器, API 由其反代到后端 Service
+                name: {{ include "filecodebox.frontend.fullname" $ }}
                 port:
                   name: http
           {{- end }}

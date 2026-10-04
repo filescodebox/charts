@@ -9,7 +9,15 @@ metadata:
 spec:
   restartPolicy: Never
   containers:
-    - name: wget
+    # 前端容器: 静态首页可访问(入口链路通)
+    - name: wget-frontend
+      image: busybox:1.36
+      command: ["wget"]
+      args:
+        - "--spider"
+        - "{{ include "filecodebox.frontend.fullname" . }}:{{ .Values.frontend.service.port }}/"
+    # 后端容器: /health 支持 HEAD(busybox --spider 发 HEAD;/live 不会)
+    - name: wget-backend
       image: busybox:1.36
       command: ["wget"]
       args:
