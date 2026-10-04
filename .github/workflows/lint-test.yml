@@ -100,13 +100,16 @@ jobs:
       - name: Dump failure diagnostics (push)
         if: failure() && github.event_name == 'push'
         run: |
-          kubectl -n fcb-ci get deploy,sts,po -o wide || true
-          echo '──────── events ────────'
-          kubectl -n fcb-ci get events --sort-by=.lastTimestamp | tail -40 || true
-          for p in $(kubectl -n fcb-ci get po -o name); do
-            echo "──────── $p ────────"
-            kubectl -n fcb-ci describe "$p" | sed -n '/^Events:/,$p' || true
-            kubectl -n fcb-ci logs "$p" --all-containers --init-containers --tail=50 || true
+          for ns in fcb-ci fcb-minio; do
+            echo "════════ 命名空间 $ns ════════"
+            kubectl -n "$ns" get deploy,sts,po -o wide || true
+            echo '──────── events ────────'
+            kubectl -n "$ns" get events --sort-by=.lastTimestamp | tail -40 || true
+            for p in $(kubectl -n "$ns" get po -o name); do
+              echo "──────── $p ────────"
+              kubectl -n "$ns" describe "$p" | sed -n '/^Events:/,$p' || true
+              kubectl -n "$ns" logs "$p" --all-containers --init-containers --tail=50 || true
+            done
           done
 
       - name: Run chart-testing (install)

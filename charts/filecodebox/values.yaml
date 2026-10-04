@@ -274,12 +274,13 @@ minio:
   enabled: false
   image:
     repository: minio/minio
-    tag: "RELEASE.2025-04-22T22-12-26Z"
+    # MinIO 社区镜像 2025-09 后停止推送(商业版分叉),此为 docker hub 上最后一个真实 tag(已 registry 实测)
+    tag: "RELEASE.2025-09-07T16-13-09Z"
     pullPolicy: IfNotPresent
   # 建桶/预签名管理客户端(minio/mc),仅后端 init 容器使用
   initImage:
     repository: minio/mc
-    tag: "RELEASE.2025-04-08T15-39-48Z"
+    tag: "RELEASE.2025-08-13T08-35-41Z"
   auth:
     rootUser: filecodebox
     # 留空 = 安装时随机生成并写入 Secret,升级复用既有值(lookup)
