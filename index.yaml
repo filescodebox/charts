@@ -9,6 +9,35 @@ entries:
         - name: docs
           url: https://github.com/filescodebox/filescodebox
     apiVersion: v2
+    appVersion: v0.7.0
+    created: "2026-10-04T02:02:28.458253482Z"
+    description: filescodebox 文件快递柜 — 匿名口令分享文本/文件（单容器，镜像内置前端静态资源）
+    digest: cd9225482d46a1986c25580e617a655f7f6baee8b24637033be4ac874fc4fbeb
+    home: https://github.com/filescodebox/filescodebox
+    keywords:
+    - file-sharing
+    - pastebin
+    - filecodebox
+    kubeVersion: '>=1.22.0-0'
+    maintainers:
+    - name: filescodebox
+      url: https://github.com/orgs/filescodebox
+    name: filecodebox
+    sources:
+    - https://github.com/filescodebox/server
+    - https://github.com/filescodebox/filescodebox
+    type: application
+    urls:
+    - https://github.com/filescodebox/charts/releases/download/filecodebox-0.2.8/filecodebox-0.2.8.tgz
+    version: 0.2.8
+  - annotations:
+      artifacthub.io/license: MIT
+      artifacthub.io/links: |
+        - name: source
+          url: https://github.com/filescodebox/server
+        - name: docs
+          url: https://github.com/filescodebox/filescodebox
+    apiVersion: v2
     appVersion: v0.6.4
     created: "2026-10-03T17:17:07.401677859Z"
     description: filescodebox 文件快递柜 — 匿名口令分享文本/文件（单容器，镜像内置前端静态资源）
@@ -406,4 +435,4 @@ entries:
     urls:
     - https://github.com/filescodebox/charts/releases/download/filecodebox-0.1.0/filecodebox-0.1.0.tgz
     version: 0.1.0
-generated: "2026-10-03T17:17:07.401803103Z"
+generated: "2026-10-04T02:02:28.45836984Z"
