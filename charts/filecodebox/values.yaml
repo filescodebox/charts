@@ -28,6 +28,10 @@ frontend:
     tag: ""
     pullPolicy: IfNotPresent
   containerPort: 8080   # 镜像 nginx 以非 root(uid 101)监听 8080
+  # nginx client_max_body_size: 反代链路体积上限,须 >= upload.upload_size。
+  # 镜像默认 20m 是隐性瓶颈(分片上传单分片小不受影响,但多文件 zip 流式下载/
+  # 大请求体会被 nginx 先拒);后端自身仍有 upload.upload_size 强校验,nginx 放宽即可
+  clientMaxBodySize: "1024m"
   service:
     type: ClusterIP
     port: 80
@@ -312,6 +316,12 @@ s3:
     secretKey: ""
   bucket: filecodebox
   region: us-east-1
+  # 建桶后自动写入的桶 CORS(幂等)。直传/直下等浏览器直连桶的场景必需;
+  # 注意预签名 URL 由 storage.s3.endpoint 生成——内置实例端点在集群内,浏览器不可达,
+  # 这类用法请外接 S3 并以 config.storage 指向对外端点(内置实例自动让位,凭据/桶可复用)。
+  # 留空 [] 关闭自动 CORS。默认 * (文件分享场景;收紧请改为站点 origin 列表)
+  corsOrigins:
+    - "*"
   persistence:
     storageClass: ""
     size: 10Gi

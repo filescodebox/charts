@@ -42,7 +42,7 @@
    生产请设 config.redis.host 指向外部 Redis。
 {{- end }}
 {{- if .Values.s3.enabled }}
-   对象存储: 内置 SeaweedFS(S3 兼容) {{ include "filecodebox.s3.fullname" . }} (桶 {{ .Values.s3.bucket }} 已自动创建并注入 FCB_STORAGE_*; 凭据在 Secret {{ include "filecodebox.s3.fullname" . }}){{ if get (.Values.config | default dict) "storage" }} ⚠️ config.storage 已显式配置,内置实例未接线{{ end }}
+   对象存储: 内置 SeaweedFS(S3 兼容) {{ include "filecodebox.s3.fullname" . }} (桶 {{ .Values.s3.bucket }} 已自动创建并注入 FCB_STORAGE_*; 凭据在 Secret {{ include "filecodebox.s3.fullname" . }}{{ if .Values.s3.corsOrigins }}; 桶 CORS 已写入{{ end }}){{ if get (.Values.config | default dict) "storage" }} ⚠️ config.storage 已显式配置,内置实例未接线{{ end }}
 {{- end }}
 {{- if .Values.mysql.enabled }}
    MySQL: 内置 {{ include "filecodebox.mysql.fullname" . }} (自动注入 FCB_DATABASE_*, 密码在 Secret {{ include "filecodebox.mysql.fullname" . }})

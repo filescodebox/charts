@@ -53,7 +53,8 @@ spec:
               memory: 16Mi
         {{- end }}
         {{- if $wireS3 }}
-        {{- /* 桶存在 ⇒ S3 网关就绪, head-bucket 探测+建桶一步完成; aws-cli 走 SigV4 而非 minio 专有客户端 */}}
+        {{- /* 桶存在 ⇒ S3 网关就绪, head-bucket 探测+建桶一步完成; aws-cli 走 SigV4 而非 minio 专有客户端。
+           corsOrigins 非空时顺手写桶 CORS(直传/直下浏览器跨域必需, 幂等可重复执行) */}}
         - name: wait-s3-bucket
           image: {{ .Values.s3.initImage.repository }}:{{ .Values.s3.initImage.tag }}
           env:
@@ -68,7 +69,11 @@ spec:
               value: {{ .Values.s3.region | default "us-east-1" }}
             - name: S3_ENDPOINT
               value: http://{{ include "filecodebox.s3.fullname" . }}:8333
-          command: ["sh", "-c", "until aws --endpoint-url \"$S3_ENDPOINT\" s3api head-bucket --bucket {{ .Values.s3.bucket }} 2>/dev/null; do aws --endpoint-url \"$S3_ENDPOINT\" s3api create-bucket --bucket {{ .Values.s3.bucket }} || true; echo waiting for s3; sleep 5; done"]
+            {{- with .Values.s3.corsOrigins }}
+            - name: S3_CORS_CONFIG
+              value: {{ (dict "CORSRules" (list (dict "AllowedOrigins" . "AllowedMethods" (list "GET" "PUT" "POST" "HEAD") "AllowedHeaders" (list "*") "MaxAgeSeconds" 3600))) | toJson | quote }}
+            {{- end }}
+          command: ["sh", "-c", "until aws --endpoint-url \"$S3_ENDPOINT\" s3api head-bucket --bucket {{ .Values.s3.bucket }} 2>/dev/null; do aws --endpoint-url \"$S3_ENDPOINT\" s3api create-bucket --bucket {{ .Values.s3.bucket }} || true; echo waiting for s3; sleep 5; done; if [ -n \"$S3_CORS_CONFIG\" ]; then aws --endpoint-url \"$S3_ENDPOINT\" s3api put-bucket-cors --bucket {{ .Values.s3.bucket }} --cors-configuration \"$S3_CORS_CONFIG\" && echo s3 cors applied; fi"]
           resources:
             requests:
               cpu: 10m

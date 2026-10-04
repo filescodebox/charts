@@ -64,6 +64,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | `frontend.replicaCount` | 前端副本数（无状态，可独立扩缩） | `1` |
 | `frontend.image.repository` / `tag` / `pullPolicy` | 前端镜像；tag 缺省同 AppVersion（与 server 同版本列车） | `ghcr.io/filescodebox/frontend` / `""` / `IfNotPresent` |
 | `frontend.containerPort` | nginx 监听端口（镜像非 root 固定 8080） | `8080` |
+| `frontend.clientMaxBodySize` | nginx `client_max_body_size`（反代链路体积上限，须 ≥ `upload.upload_size`；镜像默认 20m，chart 放宽避免多文件 zip 下载/大请求体被 nginx 先拒） | `1024m` |
 | `frontend.securityContext` | 前端容器安全上下文（镜像 uid/gid 101） | 非 root、drop ALL |
 | `frontend.probes.liveness` / `readiness` | 前端探针（GET `/`） | 见 values.yaml |
 | `frontend.resources` | 前端资源限额 | 64Mi~128Mi |
@@ -82,6 +83,9 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | `mysql.persistence.size` / `postgresql.persistence.size` | 数据卷 | `10Gi` |
 | `s3.enabled` | 内置 SeaweedFS（S3 兼容对象存储，单进程；自动建桶、注入 `FCB_STORAGE_*` 与 `FCB_SSRF_ALLOW_PRIVATE`；需 server ≥ 0.9.3） | `false` |
 | `s3.image.*` / `initImage.*` / `auth.*` / `bucket` / `region` / `persistence.size` | SeaweedFS 镜像、建桶用 aws-cli init 容器、凭据（secretKey 留空随机生成）、桶名与 region | 见 values.yaml |
+| `s3.corsOrigins` | 建桶后自动写入的桶 CORS（幂等；直传/直下等浏览器直连桶场景必需，`[]` 关闭） | `["*"]` |
+
+**不使用 / 关闭内置 S3**：默认就是关闭（存储走本地 `local`）。启用过想关：`--set s3.enabled=false` 升级即可移除 StatefulSet，桶数据仍在 PVC 中（VCT 创建的 PVC 不会被 helm 删除）；想**部署但不接线**（例如复用内置桶给其他程序），给 `config.storage` 显式配置任意完整存储段即自动让位。预签名直传/直下需桶端点对浏览器可达——内置实例端点在集群内，这类场景请外接 S3 并以 `config.storage` 指向对外端点（凭据/桶可复用内置实例）。
 
 > 内置实例接线优先级高于 `config`（env 覆盖）；三个组件继承顶层 `nodeSelector`/`tolerations`/`affinity`，离线集群需把对应镜像导入到被调度节点。
 
