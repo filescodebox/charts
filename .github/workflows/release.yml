@@ -28,6 +28,10 @@ jobs:
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.7.0
+        with:
+          # 同版本已发布时优雅跳过(否则任何不带版本 bump 的 push 都会
+          # 因 422 tag_name already_exists 把本工作流打红)
+          skip_existing: true
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 
