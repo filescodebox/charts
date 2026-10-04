@@ -67,4 +67,4 @@ chart `version` 未变化的 push 不会重复发布。
 ## 相关仓库
 
 见组织首页 [filescodebox/.github](https://github.com/filescodebox/.github)：
-hub 装配仓 `filescodebox`(repo 已由 FilesCodeBox 改名, 本地目录暂为 FilesCodeBox/)、业务核心 `core`、部署壳 `server`、前端 `frontend`、契约 `contracts`、飞牛适配 `filescodebox-fnos`。
+hub 装配仓 `filescodebox`(repo 已由 FilesCodeBox 改名, 本地目录暂为 FilesCodeBox/)、业务核心 `core`、部署壳 `server`、前端 `frontend`、契约 `contracts`、飞牛适配 `fnos`(repo 已由 filescodebox-fnos 改名, 2026-10-04)。
