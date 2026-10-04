@@ -35,9 +35,10 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- /* 数据面接线: 内置 redis/mysql/postgresql/s3(SeaweedFS) → FCB_* env(env 优先级高于 config) */}}
-      {{- $wireRedis := and .Values.redis.enabled (not (hasKey (.Values.config | default dict) "redis")) }}
-      {{- $wireS3 := and .Values.s3.enabled (not (hasKey (.Values.config | default dict) "storage")) }}
+      {{- /* 数据面接线: 内置 redis/mysql/postgresql/s3(SeaweedFS) → FCB_* env(env 优先级高于 config)。
+         让位判断用取值判空而非 hasKey: config.<段>=null(helm --set xxx=null 删除语义)也算未显式配置 */}}
+      {{- $wireRedis := and .Values.redis.enabled (not (get (.Values.config | default dict) "redis")) }}
+      {{- $wireS3 := and .Values.s3.enabled (not (get (.Values.config | default dict) "storage")) }}
       {{- if or $wireRedis $wireS3 }}
       initContainers:
         {{- if $wireRedis }}
@@ -94,8 +95,8 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ include "filecodebox.secretName" . }}
-          {{- $wireRedis := and .Values.redis.enabled (not (hasKey (.Values.config | default dict) "redis")) }}
-          {{- $wireS3 := and .Values.s3.enabled (not (hasKey (.Values.config | default dict) "storage")) }}
+          {{- $wireRedis := and .Values.redis.enabled (not (get (.Values.config | default dict) "redis")) }}
+          {{- $wireS3 := and .Values.s3.enabled (not (get (.Values.config | default dict) "storage")) }}
           {{- if or .Values.trustedProxies .Values.extraEnv $wireRedis $wireS3 .Values.mysql.enabled .Values.postgresql.enabled }}
           env:
             {{- with .Values.trustedProxies }}
