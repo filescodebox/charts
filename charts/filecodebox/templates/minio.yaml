@@ -1,0 +1,121 @@
+{{- if .Values.minio.enabled }}
+{{- $secretName := include "filecodebox.minio.fullname" . }}
+{{- $accessKey := .Values.minio.auth.rootUser }}
+{{- $secretKey := include "filecodebox.stablePassword" (dict "secretName" $secretName "key" "secret-key" "explicit" .Values.minio.auth.rootPassword "Release" .Release) }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "minio" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+type: Opaque
+stringData:
+  root-user: {{ $accessKey | quote }}
+  root-password: {{ $secretKey | quote }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "minio" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: {{ $secretName }}
+  selector:
+    matchLabels:
+      {{- include "filecodebox.data.selectorLabels" (dict "component" "minio" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "filecodebox.data.selectorLabels" (dict "component" "minio" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: minio
+          image: {{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}
+          imagePullPolicy: {{ .Values.minio.image.pullPolicy }}
+          command: ["minio"]
+          args: ["server", "/data", "--address", ":9000", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: root-password
+          ports:
+            - name: api
+              containerPort: 9000
+              protocol: TCP
+            - name: console
+              containerPort: 9001
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: api
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 12
+          resources:
+            {{- toYaml .Values.minio.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.minio.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.minio.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "minio" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: api
+      port: 9000
+      targetPort: api
+      protocol: TCP
+  selector:
+    {{- include "filecodebox.data.selectorLabels" (dict "component" "minio" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+{{- end }}

@@ -41,6 +41,9 @@
    Redis: 未启用 —— 匿名取件/文件直传分享等依赖 Redis 的功能将降级,
    生产请设 config.redis.host 指向外部 Redis。
 {{- end }}
+{{- if .Values.minio.enabled }}
+   对象存储: 内置 MinIO {{ include "filecodebox.minio.fullname" . }} (桶 {{ .Values.minio.bucket }} 已自动创建并注入 FCB_STORAGE_*; 凭据在 Secret {{ include "filecodebox.minio.fullname" . }})
+{{- end }}
 {{- if .Values.mysql.enabled }}
    MySQL: 内置 {{ include "filecodebox.mysql.fullname" . }} (自动注入 FCB_DATABASE_*, 密码在 Secret {{ include "filecodebox.mysql.fullname" . }})
 {{- else if .Values.postgresql.enabled }}

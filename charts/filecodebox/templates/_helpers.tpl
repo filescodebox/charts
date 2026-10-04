@@ -144,6 +144,10 @@ Secret 名: 优先 existingSecret
 {{- printf "%s-postgresql" (include "filecodebox.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
+{{- define "filecodebox.minio.fullname" -}}
+{{- printf "%s-minio" (include "filecodebox.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
 {{/*
 数据面组件选择器标签(name 带 -<组件> 后缀)
 */}}

@@ -4,7 +4,7 @@ filescodebox（文件快递柜 — 匿名口令分享文本/文件）的 Helm Ch
 
 架构（0.3+）：**前后端分离两容器** —— `frontend`（[ghcr.io/filescodebox/frontend](https://github.com/filescodebox/frontend)，nginx 静态资源 + API 反代）与 `server`（[ghcr.io/filescodebox/server](https://github.com/filescodebox/server)，API/数据，携带 PVC）。Ingress/NodePort 指向 frontend Service，API 请求由其反代后端；两镜像同一版本列车（`frontend.image.tag` 缺省同 AppVersion，由 server 仓 release 工作流同步发布）。server 镜像为纯后端（0.9.0 起不含前端静态资源）；docker compose 模板同为前后端分离编排；fnOS 应用为独立打包，不受影响。
 
-内置数据面服务（0.4+）：`redis.enabled` 默认开启（单副本 + AOF + PVC，自动注入 `FCB_REDIS_HOST`，开箱即用）；`mysql.enabled` / `postgresql.enabled` 默认关闭，开启即部署单副本 StatefulSet 并自动注入 `FCB_DATABASE_*`（密码自动生成存 Secret，可用 `*.auth.*Password` 显式指定）。生产/多副本建议关闭内置实例、`config.database` + `secret.database` 指向外部服务。
+内置数据面服务（0.4+）：`redis.enabled` 默认开启（单副本 + AOF + PVC，自动注入 `FCB_REDIS_HOST`，开箱即用）；`mysql.enabled` / `postgresql.enabled` / `minio.enabled` 默认关闭，开启即部署单副本 StatefulSet 并自动注入 `FCB_DATABASE_*` / `FCB_STORAGE_S3_*`（密码自动生成存 Secret，可用 `*.auth.*Password` 显式指定；MinIO 桶自动创建，需 server 镜像 ≥ 0.9.3）。生产/多副本建议关闭内置实例、`config.database` + `config.storage` 指向外部服务。
 
 ```bash
 helm repo add filescodebox https://filescodebox.github.io/charts
@@ -78,6 +78,8 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | `mysql.enabled` / `postgresql.enabled` | 内置 MySQL 8.4 / PostgreSQL 17 单副本 StatefulSet（默认关）；开启即自动注入 `FCB_DATABASE_*` | `false` |
 | `mysql.auth.*` / `postgresql.auth.*` | `username`(默认 filecodebox)、`database`(默认 filecodebox)、密码留空=随机生成并跨升级复用 | 见 values.yaml |
 | `mysql.persistence.size` / `postgresql.persistence.size` | 数据卷 | `10Gi` |
+| `minio.enabled` | 内置 MinIO（S3 兼容对象存储；自动建桶并注入 `FCB_STORAGE_*`；需 server ≥ 0.9.3） | `false` |
+| `minio.image.*` / `initImage.*` / `auth.*` / `bucket` / `persistence.size` | 镜像与 mc 客户端、root 凭据（密码留空随机生成）、桶名 | 见 values.yaml |
 
 > 内置实例接线优先级高于 `config`（env 覆盖）；三个组件继承顶层 `nodeSelector`/`tolerations`/`affinity`，离线集群需把对应镜像导入到被调度节点。
 

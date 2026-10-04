@@ -265,6 +265,37 @@ postgresql:
       cpu: "1"
       memory: 1Gi
 
+# 内置 MinIO(默认关): S3 兼容对象存储,开启即部署单副本 StatefulSet + 自动建桶,
+# 并自动注入 FCB_STORAGE_TYPE/FCB_STORAGE_S3_*(env 优先级高于 config)。
+# 适合无外部对象存储的单集群生产形态;已有 S3/WebDAV 时保持 false。
+# 离线集群启用前先导入 minio/minio 与 minio/mc 镜像到被调度节点。
+# ⚠️ 需要 server 镜像 >= 0.9.3(此前 core 未映射 FCB_STORAGE_S3_* env)。
+minio:
+  enabled: false
+  image:
+    repository: minio/minio
+    tag: "RELEASE.2025-04-22T22-12-26Z"
+    pullPolicy: IfNotPresent
+  # 建桶/预签名管理客户端(minio/mc),仅后端 init 容器使用
+  initImage:
+    repository: minio/mc
+    tag: "RELEASE.2025-04-08T15-39-48Z"
+  auth:
+    rootUser: filecodebox
+    # 留空 = 安装时随机生成并写入 Secret,升级复用既有值(lookup)
+    rootPassword: ""
+  bucket: filecodebox
+  persistence:
+    storageClass: ""
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
 # 追加原生 env(完整 k8s env 对象数组)
 extraEnv: []
 #  - name: TZ
