@@ -2,7 +2,7 @@
 
 filescodebox（文件快递柜 — 匿名口令分享文本/文件）的 Helm Chart。
 
-架构（0.3+）：**前后端分离两容器** —— `frontend`（[ghcr.io/filescodebox/frontend](https://github.com/filescodebox/frontend)，nginx 静态资源 + API 反代）与 `server`（[ghcr.io/filescodebox/server](https://github.com/filescodebox/server)，API/数据，携带 PVC）。Ingress/NodePort 指向 frontend Service，API 请求由其反代后端；两镜像同一版本列车（`frontend.image.tag` 缺省同 AppVersion，由 server 仓 release 工作流同步发布）。server 镜像仍内嵌前端静态资源，供 docker compose / fnOS 单容器模式使用。
+架构（0.3+）：**前后端分离两容器** —— `frontend`（[ghcr.io/filescodebox/frontend](https://github.com/filescodebox/frontend)，nginx 静态资源 + API 反代）与 `server`（[ghcr.io/filescodebox/server](https://github.com/filescodebox/server)，API/数据，携带 PVC）。Ingress/NodePort 指向 frontend Service，API 请求由其反代后端；两镜像同一版本列车（`frontend.image.tag` 缺省同 AppVersion，由 server 仓 release 工作流同步发布）。server 镜像为纯后端（0.9.0 起不含前端静态资源）；docker compose 模板同为前后端分离编排；fnOS 应用为独立打包，不受影响。
 
 ```bash
 helm repo add filescodebox https://filescodebox.github.io/charts

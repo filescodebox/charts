@@ -3,8 +3,9 @@
 #
 # 架构(0.3+): 前后端分离两容器 ——
 #   frontend Deployment(nginx: 静态资源 + API 反代) → server Deployment(API/数据)
-#   Ingress 只指 frontend Service；server 镜像仍内嵌前端，供 compose/fnos 单容器模式。
-#   两镜像同一版本列车(frontend.tag 缺省同 AppVersion，由 server 仓 release 同步发布)。
+#   Ingress 只指 frontend Service；server 镜像为纯后端(0.9.0 起不含前端,core 对
+#   缺失 static 优雅降级)；两镜像同一版本列车(frontend.tag 缺省同 AppVersion，
+#   由 server 仓 release 同步发布；compose 模板自 0.9.0 起同为分离编排)。
 
 # ⚠️ 多副本需要外部 MySQL/Postgres + 对象存储(S3/WebDAV)，并使用支持多节点读写的卷；
 #    SQLite 默认部署下请保持 1。
