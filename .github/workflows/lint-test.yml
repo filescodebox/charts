@@ -66,9 +66,9 @@ jobs:
             ref="ghcr.io/filescodebox/${image}:${tag}"
             echo "等待 ${ref} 可拉取..."
             ok=0
-            for i in $(seq 1 50); do
+            for i in $(seq 1 90); do
               if docker pull "$ref"; then ok=1; break; fi
-              echo "  未发布，30s 后重试（$i/50）..."
+              echo "  未发布，30s 后重试（$i/90）..."
               sleep 30
             done
             [ "$ok" = "1" ] || { echo "::error::${ref} 25 分钟内未发布——对应 Release 未跑或失败"; exit 1; }
