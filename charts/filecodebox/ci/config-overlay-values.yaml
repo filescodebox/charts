@@ -20,7 +20,7 @@ config:
     max_age: 7
     compress: true
   app:
-    name: FileCodeBox
+    name: FilesCodeBox
     datapath: "./data"
     production: true
   upload:
