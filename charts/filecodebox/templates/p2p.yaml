@@ -43,10 +43,24 @@ spec:
             - name: FCB_P2P_ADMIN_PASSWORD
               value: {{ .Values.p2p.adminPassword | quote }}
           {{- end }}
+          {{- if .Values.p2p.relay.enabled }}
+          env:
+            - name: FCB_P2P_RELAY_ENABLED
+              value: "true"
+            {{- if .Values.p2p.relay.mbps }}
+            - name: FCB_P2P_RELAY_MBPS
+              value: {{ .Values.p2p.relay.mbps | quote }}
+            {{- end }}
+          {{- end }}
           ports:
             - name: http
               containerPort: 12346
               protocol: TCP
+            {{- if .Values.p2p.relay.enabled }}
+            - name: relay
+              containerPort: 12347
+              protocol: TCP
+            {{- end }}
           # /health 未注册 HEAD,探针必须显式 GET
           livenessProbe:
             httpGet:
@@ -94,6 +108,12 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    {{- if .Values.p2p.relay.enabled }}
+    - port: 12347
+      targetPort: relay
+      protocol: TCP
+      name: relay
+    {{- end }}
   selector:
     {{- include "filecodebox.data.selectorLabels" (dict "component" "p2p" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 {{- end }}
