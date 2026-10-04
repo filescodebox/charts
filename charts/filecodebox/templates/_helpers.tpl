@@ -144,8 +144,8 @@ Secret 名: 优先 existingSecret
 {{- printf "%s-postgresql" (include "filecodebox.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{- define "filecodebox.minio.fullname" -}}
-{{- printf "%s-minio" (include "filecodebox.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- define "filecodebox.s3.fullname" -}}
+{{- printf "%s-s3" (include "filecodebox.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*

@@ -265,37 +265,40 @@ postgresql:
       cpu: "1"
       memory: 1Gi
 
-# 内置 MinIO(默认关): S3 兼容对象存储,开启即部署单副本 StatefulSet + 自动建桶,
-# 并自动注入 FCB_STORAGE_TYPE/FCB_STORAGE_S3_*(env 优先级高于 config)。
-# 适合无外部对象存储的单集群生产形态;已有 S3/WebDAV 时保持 false。
-# 离线集群启用前先导入 minio/minio 与 minio/mc 镜像到被调度节点。
+# 内置 S3 对象存储(默认关): SeaweedFS 单进程(master+volume+filer+s3),开启即部署
+# 单副本 StatefulSet + 自动建桶,并自动注入 FCB_STORAGE_TYPE/FCB_STORAGE_S3_*
+# 与 FCB_SSRF_ALLOW_PRIVATE(集群内端点属私网,须放开 core 的 SSRF 防护;
+# env 优先级高于 config)。适合无外部对象存储的单集群生产形态;已有 S3/WebDAV 时保持 false。
+# 选型说明: MinIO 2025-06 起停止发布社区容器镜像(docker.io/quay.io 均拒绝匿名拉取),
+# 故改用仍持续发布官方多架构镜像的 SeaweedFS(Apache-2.0)。
+# 离线集群启用前先导入 seaweedfs 与 aws-cli 镜像到被调度节点。
 # ⚠️ 需要 server 镜像 >= 0.9.3(此前 core 未映射 FCB_STORAGE_S3_* env)。
-minio:
+s3:
   enabled: false
   image:
-    repository: minio/minio
-    # MinIO 社区镜像 2025-09 后停止推送(商业版分叉),此为 docker hub 上最后一个真实 tag(已 registry 实测)
-    tag: "RELEASE.2025-09-07T16-13-09Z"
+    repository: ghcr.io/chrislusf/seaweedfs
+    tag: "4.48"
     pullPolicy: IfNotPresent
-  # 建桶/预签名管理客户端(minio/mc),仅后端 init 容器使用
+  # 建桶 init 容器(AWS 官方 aws-cli, 持续发布多架构; 走标准 SigV4)
   initImage:
-    repository: minio/mc
-    tag: "RELEASE.2025-08-13T08-35-41Z"
+    repository: amazon/aws-cli
+    tag: "2.32.8"
   auth:
-    rootUser: filecodebox
+    accessKey: filecodebox
     # 留空 = 安装时随机生成并写入 Secret,升级复用既有值(lookup)
-    rootPassword: ""
+    secretKey: ""
   bucket: filecodebox
+  region: us-east-1
   persistence:
     storageClass: ""
     size: 10Gi
   resources:
     requests:
-      cpu: 250m
-      memory: 512Mi
+      cpu: 100m
+      memory: 256Mi
     limits:
       cpu: "1"
-      memory: 2Gi
+      memory: 1Gi
 
 # 追加原生 env(完整 k8s env 对象数组)
 extraEnv: []

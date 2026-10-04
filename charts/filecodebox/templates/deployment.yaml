@@ -35,12 +35,13 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- /* 数据面接线: 内置 redis/mysql/postgresql/minio → FCB_* env(env 优先级高于 config) */}}
+      {{- /* 数据面接线: 内置 redis/mysql/postgresql/s3(SeaweedFS) → FCB_* env(env 优先级高于 config) */}}
       {{- $wireRedis := and .Values.redis.enabled (not (hasKey (.Values.config | default dict) "redis")) }}
-      {{- $wireMinio := and .Values.minio.enabled (not (hasKey (.Values.config | default dict) "storage")) }}
-      {{- if $wireRedis }}
-      {{- /* core 仅在启动时探测 redis,连不上即降级——等 redis 就绪再起后端; 用 redis 镜像自带 redis-cli,不引入额外镜像 */}}
+      {{- $wireS3 := and .Values.s3.enabled (not (hasKey (.Values.config | default dict) "storage")) }}
+      {{- if or $wireRedis $wireS3 }}
       initContainers:
+        {{- if $wireRedis }}
+        {{- /* core 仅在启动时探测 redis,连不上即降级——等 redis 就绪再起后端; 用 redis 镜像自带 redis-cli,不引入额外镜像 */}}
         - name: wait-redis
           image: {{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag | default "7-alpine" }}
           imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
@@ -49,23 +50,29 @@ spec:
             requests:
               cpu: 10m
               memory: 16Mi
-      {{- end }}
-      {{- if $wireMinio }}
-      {{- /* MinIO 不自动建桶: mc 就绪即建(桶存在⇒MinIO 就绪),一步完成等待+初始化 */}}
-      initContainers:
-        - name: wait-minio-bucket
-          image: {{ .Values.minio.initImage.repository }}:{{ .Values.minio.initImage.tag }}
-          command: ["sh", "-c", "export MC_HOST_fcb=\"http://{{ .Values.minio.auth.rootUser }}:${MINIO_ROOT_PASSWORD}@{{ include "filecodebox.minio.fullname" . }}:9000\"; until mc mb --ignore-existing fcb/{{ .Values.minio.bucket }}; do echo waiting for minio; sleep 5; done"]
+        {{- end }}
+        {{- if $wireS3 }}
+        {{- /* 桶存在 ⇒ S3 网关就绪, head-bucket 探测+建桶一步完成; aws-cli 走 SigV4 而非 minio 专有客户端 */}}
+        - name: wait-s3-bucket
+          image: {{ .Values.s3.initImage.repository }}:{{ .Values.s3.initImage.tag }}
           env:
-            - name: MINIO_ROOT_PASSWORD
+            - name: AWS_ACCESS_KEY_ID
+              value: {{ .Values.s3.auth.accessKey | quote }}
+            - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "filecodebox.minio.fullname" . }}
-                  key: root-password
+                  name: {{ include "filecodebox.s3.fullname" . }}
+                  key: secret-key
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.s3.region | default "us-east-1" }}
+            - name: S3_ENDPOINT
+              value: http://{{ include "filecodebox.s3.fullname" . }}:8333
+          command: ["sh", "-c", "until aws --endpoint-url \"$S3_ENDPOINT\" s3api head-bucket --bucket {{ .Values.s3.bucket }} 2>/dev/null; do aws --endpoint-url \"$S3_ENDPOINT\" s3api create-bucket --bucket {{ .Values.s3.bucket }} || true; echo waiting for s3; sleep 5; done"]
           resources:
             requests:
               cpu: 10m
               memory: 16Mi
+        {{- end }}
       {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -88,8 +95,8 @@ spec:
             - secretRef:
                 name: {{ include "filecodebox.secretName" . }}
           {{- $wireRedis := and .Values.redis.enabled (not (hasKey (.Values.config | default dict) "redis")) }}
-          {{- $wireMinio := and .Values.minio.enabled (not (hasKey (.Values.config | default dict) "storage")) }}
-          {{- if or .Values.trustedProxies .Values.extraEnv $wireRedis $wireMinio .Values.mysql.enabled .Values.postgresql.enabled }}
+          {{- $wireS3 := and .Values.s3.enabled (not (hasKey (.Values.config | default dict) "storage")) }}
+          {{- if or .Values.trustedProxies .Values.extraEnv $wireRedis $wireS3 .Values.mysql.enabled .Values.postgresql.enabled }}
           env:
             {{- with .Values.trustedProxies }}
             - name: FCB_TRUSTED_PROXIES
@@ -142,23 +149,26 @@ spec:
                   name: {{ include "filecodebox.postgresql.fullname" . }}
                   key: user-password
             {{- end }}
-            {{- if $wireMinio }}
-            {{- /* storage.s3 env 映射需 core v0.7.7+(server 镜像 >= 0.9.3) */}}
+            {{- if $wireS3 }}
+            {{- /* storage.s3 env 映射需 core v0.7.7+(server 镜像 >= 0.9.3);
+               集群内端点是私网地址,须放开 core 的 SSRF 端点防护才可用 */}}
+            - name: FCB_SSRF_ALLOW_PRIVATE
+              value: "true"
             - name: FCB_STORAGE_TYPE
               value: s3
             - name: FCB_STORAGE_S3_ENDPOINT
-              value: http://{{ include "filecodebox.minio.fullname" . }}:9000
+              value: http://{{ include "filecodebox.s3.fullname" . }}:8333
             - name: FCB_STORAGE_S3_REGION
-              value: {{ .Values.minio.region | default "us-east-1" }}
+              value: {{ .Values.s3.region | default "us-east-1" }}
             - name: FCB_STORAGE_S3_BUCKET
-              value: {{ .Values.minio.bucket | quote }}
+              value: {{ .Values.s3.bucket | quote }}
             - name: FCB_STORAGE_S3_ACCESS_KEY
-              value: {{ .Values.minio.auth.rootUser | quote }}
+              value: {{ .Values.s3.auth.accessKey | quote }}
             - name: FCB_STORAGE_S3_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "filecodebox.minio.fullname" . }}
-                  key: root-password
+                  name: {{ include "filecodebox.s3.fullname" . }}
+                  key: secret-key
             - name: FCB_STORAGE_S3_USE_SSL
               value: "false"
             - name: FCB_STORAGE_S3_PATH_STYLE

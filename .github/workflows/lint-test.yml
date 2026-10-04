@@ -84,23 +84,23 @@ jobs:
           kubectl -n fcb-ci rollout status deploy -l app.kubernetes.io/instance=fcb --timeout=5m
           helm test fcb -n fcb-ci
 
-      # 内置 MinIO 实装验证(默认关闭,独立 namespace 验证建桶 init + FCB_STORAGE_* 接线)
-      - name: MinIO install smoke (push)
+      # 内置对象存储实装验证(默认关闭,独立 namespace 验证建桶 init + FCB_STORAGE_* 接线)
+      - name: S3 (SeaweedFS) install smoke (push)
         if: github.event_name == 'push'
         run: |
-          helm upgrade --install fcb-minio charts/filecodebox -n fcb-minio --create-namespace \
+          helm upgrade --install fcb-s3 charts/filecodebox -n fcb-s3 --create-namespace \
             -f charts/filecodebox/ci/config-overlay-values.yaml \
-            --set fullnameOverride=fcb-minio --set minio.enabled=true --wait --timeout 8m
-          kubectl -n fcb-minio rollout status statefulset/fcb-minio-minio --timeout=5m
-          kubectl -n fcb-minio rollout status deploy/fcb-minio-filecodebox --timeout=8m
-          kubectl -n fcb-minio get deploy fcb-minio-filecodebox -o jsonpath='{.spec.template.spec.initContainers[*].name}' | grep -q wait-minio-bucket
+            --set fullnameOverride=fcb-s3 --set s3.enabled=true --wait --timeout 10m
+          kubectl -n fcb-s3 rollout status statefulset/fcb-s3-s3 --timeout=5m
+          kubectl -n fcb-s3 rollout status deploy/fcb-s3-filecodebox --timeout=10m
+          kubectl -n fcb-s3 get deploy fcb-s3-filecodebox -o jsonpath='{.spec.template.spec.initContainers[*].name}' | grep -q wait-s3-bucket
 
       # 冒烟失败时必须留下 Pod 级证据:此前三连挂时失败日志只有一行
       # "Deployment not ready 0/1",分不清是镜像未发布/init 容器卡住/探针语法哪层的问题。
       - name: Dump failure diagnostics (push)
         if: failure() && github.event_name == 'push'
         run: |
-          for ns in fcb-ci fcb-minio; do
+          for ns in fcb-ci fcb-s3; do
             echo "════════ 命名空间 $ns ════════"
             kubectl -n "$ns" get deploy,sts,po -o wide || true
             echo '──────── events ────────'

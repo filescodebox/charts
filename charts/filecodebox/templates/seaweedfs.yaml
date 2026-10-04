@@ -1,0 +1,164 @@
+{{- if .Values.s3.enabled }}
+{{- /* 内置对象存储: SeaweedFS 单进程(master+volume+filer+s3, `weed mini`), S3 兼容 API。
+   选型背景: MinIO 2025-06 起停止发布社区容器镜像(docker.io/quay.io 均已拒绝匿名拉取,
+   上游 README 只剩"自行构建"指引), chart 无法再引用官方 MinIO 镜像;
+   SeaweedFS(Apache-2.0) 为仍持续发布官方多架构镜像的 S3 兼容实现(ghcr.io/chrislusf/seaweedfs),
+   与 core 的 OpenDAL s3 驱动(path_style)兼容, 对后端仅是一组 FCB_STORAGE_S3_* env。 */}}
+{{- $secretName := include "filecodebox.s3.fullname" . }}
+{{- $accessKey := .Values.s3.auth.accessKey }}
+{{- $secretKey := include "filecodebox.stablePassword" (dict "secretName" $secretName "key" "secret-key" "explicit" .Values.s3.auth.secretKey "Release" .Release) }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "s3" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+type: Opaque
+stringData:
+  access-key: {{ $accessKey | quote }}
+  secret-key: {{ $secretKey | quote }}
+  # SeaweedFS S3 静态身份配置(-s3.config): Admin 全权, 同时即启用鉴权
+  s3.json: |
+    {
+      "identities": [
+        {
+          "name": "{{ $accessKey }}",
+          "actions": ["Admin"],
+          "credentials": [
+            {"accessKey": "{{ $accessKey }}", "secretKey": "{{ $secretKey }}"}
+          ]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "s3" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: {{ $secretName }}
+  selector:
+    matchLabels:
+      {{- include "filecodebox.data.selectorLabels" (dict "component" "s3" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "filecodebox.data.selectorLabels" (dict "component" "s3" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: seaweedfs
+          # 镜像 entrypoint 自带 root→su-exec(seaweed uid 1000) 降权; 以非 root 启动则直接运行
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: {{ .Values.s3.image.repository }}:{{ .Values.s3.image.tag }}
+          imagePullPolicy: {{ .Values.s3.image.pullPolicy }}
+          # `weed mini` = 官方单进程全家桶(master+volume+filer+s3); s3 网关挂 Secret 内的鉴权配置
+          args:
+            - mini
+            - -dir=/data
+            - -master.port=9333
+            - -s3.port=8333
+            - -s3.config=/etc/seaweedfs/s3.json
+          ports:
+            - name: s3
+              containerPort: 8333
+              protocol: TCP
+            - name: master
+              containerPort: 9333
+              protocol: TCP
+          {{- /* master 进程自带 /healthz /readyz(无鉴权); s3 网关晚 ~2s 启动,
+             真正的就绪门由后端 wait-s3-bucket init 容器兜底(head-bucket 探测) */}}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: master
+            periodSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: master
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: master
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 24
+          resources:
+            {{- toYaml .Values.s3.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: s3-config
+              mountPath: /etc/seaweedfs/s3.json
+              subPath: s3.json
+              readOnly: true
+      volumes:
+        - name: s3-config
+          secret:
+            secretName: {{ $secretName }}
+            items:
+              - key: s3.json
+                path: s3.json
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.s3.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.s3.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "filecodebox.data.labels" (dict "component" "s3" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: s3
+      port: 8333
+      targetPort: s3
+      protocol: TCP
+  selector:
+    {{- include "filecodebox.data.selectorLabels" (dict "component" "s3" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+{{- end }}
