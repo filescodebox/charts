@@ -1,13 +1,21 @@
 # filescodebox Helm Charts
 
-filescodebox（文件快递柜 — 匿名口令分享文本/文件）生态的 Kubernetes Helm Chart 仓库。
+[![CI](https://github.com/filescodebox/charts/actions/workflows/lint-test.yml/badge.svg)](https://github.com/filescodebox/charts/actions/workflows/lint-test.yml)
+[![Chart](https://img.shields.io/github/v/tag/filescodebox/charts?label=chart)](https://github.com/filescodebox/charts/tags)
+[![License](https://img.shields.io/github/license/filescodebox/charts)](LICENSE)
+
+[FilesCodeBox](https://github.com/filescodebox/filescodebox)（文件快递柜 — 匿名口令分享文本/文件）生态的 Kubernetes Helm Chart 仓库。
 独立发版：chart 版本与业务仓库版本解耦，chart 里的 `appVersion` 对应 `server` 镜像 tag。
+
+> 🗂️ [FilesCodeBox 生态](https://github.com/orgs/filescodebox)成员仓 · 总览与部署见 [装配仓 filescodebox](https://github.com/filescodebox/filescodebox) · [架构图集](https://github.com/filescodebox/filescodebox/blob/main/docs/architecture.md)
 
 ## Chart 一览
 
 | Chart | 说明 | Chart 版本 | App 版本 |
 |---|---|---|---|
-| `filecodebox` | 部署 [filescodebox/server](https://github.com/filescodebox/server)（镜像内置前端静态资源，单容器） | 0.1.5 | v0.1.1 |
+| `filecodebox` | 前后端分离双 Deployment：[frontend](https://github.com/filescodebox/frontend)（nginx 静态+反代）→ [server](https://github.com/filescodebox/server)（API）；Ingress 指向 frontend Service | 1.2.0 | v0.9.2 |
+
+支持可选组件：Redis / MySQL / PostgreSQL / PVC / Ingress / ServiceMonitor(Prometheus)。
 
 ## 安装
 
@@ -33,7 +41,7 @@ helm install filecodebox oci://ghcr.io/filescodebox/charts/filecodebox
 从 [Releases](https://github.com/filescodebox/charts/releases) 下载 `filecodebox-<version>.tgz`：
 
 ```bash
-helm install filecodebox ./filecodebox-0.1.5.tgz
+helm install filecodebox ./filecodebox-1.2.0.tgz
 ```
 
 生产环境最少建议覆盖：
@@ -58,13 +66,12 @@ chart `version` 未变化的 push 不会重复发布。
 
 ## CI
 
-- `lint-test.yml`：PR / push 时用 [chart-testing](https://github.com/helm/chart-testing) 做 `ct lint`，并在 kind 集群上 `ct install` 安装冒烟。
-  **前置条件**：`ghcr.io/filescodebox/server` 镜像包需为 public（或给 CI 配置 imagePullSecrets），否则安装步骤会因拉取镜像失败。
+- `lint-test.yml`：PR / push 时用 [chart-testing](https://github.com/helm/chart-testing) 做 `ct lint`，并在 kind 集群上 `ct install` 安装冒烟（CI 会轮询等待 `appVersion` 对应镜像发布后 `kind load` 预载）。
+  **前置条件**：`ghcr.io/filescodebox/server` 与 `ghcr.io/filescodebox/frontend` 镜像包需为 public（或给 CI 配置 imagePullSecrets），否则安装步骤会因拉取镜像失败。
 - `release.yml`：push 到 `main` 自动发布。
 
 仓库首次发布后需确认 GitHub Pages 已启用：Settings → Pages → Source = `gh-pages` branch / `/(root)`。
 
-## 相关仓库
+## License
 
-见组织首页 [filescodebox/.github](https://github.com/filescodebox/.github)：
-hub 装配仓 `filescodebox`(repo 已由 FilesCodeBox 改名, 本地目录暂为 FilesCodeBox/)、业务核心 `core`、部署壳 `server`、前端 `frontend`、契约 `contracts`、飞牛适配 `fnos`(repo 已由 filescodebox-fnos 改名, 2026-10-04)。
+[Apache-2.0](LICENSE)
