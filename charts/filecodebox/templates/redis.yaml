@@ -60,6 +60,10 @@ spec:
           imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
           {{- if .Values.redis.auth.password }}
           args: ["redis-server", "--appendonly", "yes", "--requirepass", {{ .Values.redis.auth.password | quote }}]
+          env:
+            # redis-cli 探测经 REDISCLI_AUTH 认证,避免密码拼进探针命令行
+            - name: REDISCLI_AUTH
+              value: {{ .Values.redis.auth.password | quote }}
           {{- else }}
           args: ["redis-server", "--appendonly", "yes"]
           {{- end }}
@@ -70,14 +74,14 @@ spec:
           {{- if .Values.redis.auth.password }}
           livenessProbe:
             exec:
-              command: ["CMD-SHELL", "redis-cli -a {{ .Values.redis.auth.password }} ping | grep -q PONG"]
+              command: ["sh", "-c", "redis-cli ping | grep -q PONG"]
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
           readinessProbe:
             exec:
-              command: ["CMD-SHELL", "redis-cli -a {{ .Values.redis.auth.password }} ping | grep -q PONG"]
+              command: ["sh", "-c", "redis-cli ping | grep -q PONG"]
             initialDelaySeconds: 3
             periodSeconds: 5
             timeoutSeconds: 3
@@ -85,14 +89,14 @@ spec:
           {{- else }}
           livenessProbe:
             exec:
-              command: ["CMD", "redis-cli", "ping"]
+              command: ["redis-cli", "ping"]
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
           readinessProbe:
             exec:
-              command: ["CMD", "redis-cli", "ping"]
+              command: ["redis-cli", "ping"]
             initialDelaySeconds: 3
             periodSeconds: 5
             timeoutSeconds: 3

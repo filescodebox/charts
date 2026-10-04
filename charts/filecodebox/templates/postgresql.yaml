@@ -54,14 +54,14 @@ spec:
               protocol: TCP
           livenessProbe:
             exec:
-              command: ["CMD-SHELL", "pg_isready -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}"]
+              command: ["sh", "-c", "pg_isready -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}"]
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
           readinessProbe:
             exec:
-              command: ["CMD-SHELL", "pg_isready -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}"]
+              command: ["sh", "-c", "pg_isready -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}"]
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 5
