@@ -97,7 +97,15 @@ spec:
                 name: {{ include "filecodebox.secretName" . }}
           {{- $wireRedis := and .Values.redis.enabled (not (get (.Values.config | default dict) "redis")) }}
           {{- $wireS3 := and .Values.s3.enabled (not (get (.Values.config | default dict) "storage")) }}
-          {{- if or .Values.trustedProxies .Values.extraEnv $wireRedis $wireS3 .Values.mysql.enabled .Values.postgresql.enabled }}
+          {{- $wireFed := and .Values.p2p.enabled (not (get (.Values.config | default dict) "federation")) }}
+          {{- /* 联邦 public_url: 显式值 > config.server.base_url;都空则不注入
+             (bootstrap 联邦初始化会失败降级,日志可见——public_url 是取件方
+             直连本站的地址,无法瞎猜) */}}
+          {{- $fedPublicURL := .Values.p2p.publicURL -}}
+          {{- if not $fedPublicURL -}}
+          {{- with (.Values.config | default dict).server -}}{{- $fedPublicURL = .base_url -}}{{- end -}}
+          {{- end -}}
+          {{- if or .Values.trustedProxies .Values.extraEnv $wireRedis $wireS3 $wireFed .Values.mysql.enabled .Values.postgresql.enabled }}
           env:
             {{- with .Values.trustedProxies }}
             - name: FCB_TRUSTED_PROXIES
@@ -174,6 +182,17 @@ spec:
               value: "false"
             - name: FCB_STORAGE_S3_PATH_STYLE
               value: "true"
+            {{- end }}
+            {{- if $wireFed }}
+            {{- /* P2P 联邦(M2): 节点身份密钥在 data 卷(persistence),重启不变 */}}
+            - name: FCB_FEDERATION_ENABLED
+              value: "true"
+            - name: FCB_FEDERATION_REGISTRY_URL
+              value: http://{{ include "filecodebox.p2p.fullname" . }}:12346
+            {{- if $fedPublicURL }}
+            - name: FCB_FEDERATION_PUBLIC_URL
+              value: {{ $fedPublicURL | quote }}
+            {{- end }}
             {{- end }}
           {{- end }}
           livenessProbe:
