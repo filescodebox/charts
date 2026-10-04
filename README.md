@@ -13,7 +13,7 @@
 
 | Chart | 说明 | Chart 版本 | App 版本 |
 |---|---|---|---|
-| `filecodebox` | 前后端分离双 Deployment：[frontend](https://github.com/filescodebox/frontend)（nginx 静态+反代）→ [server](https://github.com/filescodebox/server)（API）；Ingress 指向 frontend Service | 1.2.0 | v0.9.2 |
+| `filecodebox` | 前后端分离双 Deployment：[frontend](https://github.com/filescodebox/frontend)（nginx 静态+反代）→ [server](https://github.com/filescodebox/server)（API）；Ingress 指向 frontend Service | 1.2.1 | v0.9.2 |
 
 支持可选组件：Redis / MySQL / PostgreSQL / PVC / Ingress / ServiceMonitor(Prometheus)。
 
@@ -41,7 +41,7 @@ helm install filecodebox oci://ghcr.io/filescodebox/charts/filecodebox
 从 [Releases](https://github.com/filescodebox/charts/releases) 下载 `filecodebox-<version>.tgz`：
 
 ```bash
-helm install filecodebox ./filecodebox-1.2.0.tgz
+helm install filecodebox ./filecodebox-1.2.1.tgz
 ```
 
 生产环境最少建议覆盖：

@@ -2,7 +2,7 @@ apiVersion: v2
 name: filecodebox
 description: filescodebox 文件快递柜 — 匿名口令分享文本/文件（前后端分离部署：frontend nginx 静态+反代 / server API）
 type: application
-version: 1.2.0
+version: 1.2.1
 appVersion: "v0.9.2"
 kubeVersion: ">=1.22.0-0"
 home: https://github.com/filescodebox/filescodebox
@@ -17,7 +17,7 @@ maintainers:
   - name: filescodebox
     url: https://github.com/orgs/filescodebox
 annotations:
-  artifacthub.io/license: MIT
+  artifacthub.io/license: Apache-2.0
   artifacthub.io/links: |
     - name: source
       url: https://github.com/filescodebox/server
