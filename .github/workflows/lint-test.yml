@@ -84,6 +84,20 @@ jobs:
           kubectl -n fcb-ci rollout status deploy -l app.kubernetes.io/instance=fcb --timeout=5m
           helm test fcb -n fcb-ci
 
+      # 冒烟失败时必须留下 Pod 级证据:此前三连挂时失败日志只有一行
+      # "Deployment not ready 0/1",分不清是镜像未发布/init 容器卡住/探针语法哪层的问题。
+      - name: Dump failure diagnostics (push)
+        if: failure() && github.event_name == 'push'
+        run: |
+          kubectl -n fcb-ci get deploy,sts,po -o wide || true
+          echo '──────── events ────────'
+          kubectl -n fcb-ci get events --sort-by=.lastTimestamp | tail -40 || true
+          for p in $(kubectl -n fcb-ci get po -o name); do
+            echo "──────── $p ────────"
+            kubectl -n fcb-ci describe "$p" | sed -n '/^Events:/,$p' || true
+            kubectl -n fcb-ci logs "$p" --all-containers --init-containers --tail=50 || true
+          done
+
       - name: Run chart-testing (install)
         if: github.event_name != 'push' && steps.list-changed.outputs.changed == 'true'
         run: ct install --target-branch ${{ github.event.repository.default_branch }}
