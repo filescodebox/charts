@@ -48,6 +48,27 @@ jobs:
         if: github.event_name == 'push' || steps.list-changed.outputs.changed == 'true'
         uses: helm/kind-action@v1
 
+      # chart bump 与 server 打 tag 几乎同时(依赖升级提交同时触发两条流水线),
+      # 多架构镜像(qemu arm64)常要 10+ 分钟才 publish;kind 只等 5m,不等镜像
+      # 就会 ImagePullBackOff 超时(0.2.12/0.2.13 均如此)。匿名轮询 ghcr 至 tag 可拉。
+      - name: Wait for app image (appVersion) to be published
+        if: github.event_name == 'push'
+        run: |
+          tag=$(awk '/^appVersion:/{gsub(/"/,"",$2); print $2; exit}' charts/filecodebox/Chart.yaml)
+          tag=${tag#v}
+          echo "等待 ghcr.io/filescodebox/server:${tag} 可拉取..."
+          accept='Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json'
+          deadline=$((SECONDS + 1500))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            http=$(curl -s -o /dev/null -w '%{http_code}' -H "$accept" \
+              "https://ghcr.io/v2/filescodebox/server/manifests/${tag}")
+            [ "$http" = "200" ] && { echo "镜像已发布"; exit 0; }
+            echo "  HTTP ${http}，30s 后重试..."
+            sleep 30
+          done
+          echo "::error::ghcr.io/filescodebox/server:${tag} 25 分钟内未发布——server Release 未跑或失败"
+          exit 1
+
       - name: Real install smoke (push)
         if: github.event_name == 'push'
         run: |
