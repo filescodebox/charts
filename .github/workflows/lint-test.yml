@@ -49,28 +49,30 @@ jobs:
         uses: helm/kind-action@v1
 
       # chart bump 与 server 打 tag 几乎同时(依赖升级提交同时触发两条流水线),
-      # 多架构镜像(qemu arm64)常要 10+ 分钟才 publish;kind 只等 5m,不等镜像
-      # 就会 ImagePullBackOff 超时(0.2.12/0.2.13 均如此)。匿名轮询 ghcr 至 tag 可拉。
-      - name: Wait for app images (appVersion) to be published
+      # 多架构镜像(qemu arm64)要 10-30 分钟才 publish;kind 只等 5m,不等镜像
+      # 就会 ImagePullBackOff 超时(0.2.12/0.2.13 均如此)。
+      # 探测用 docker pull 重试——ghcr 的 registry HTTP API 对 runner 网段匿名
+      # manifest GET 恒 401(本机同请求 200),不可用作探测;docker 拉取路径没问题。
+      # 拉到后 kind load 预载,部署按 IfNotPresent 直接用,不依赖节点实时拉取。
+      - name: Wait for app images & preload into kind (push)
         if: github.event_name == 'push'
         run: |
           tag=$(awk '/^appVersion:/{gsub(/"/,"",$2); print $2; exit}' charts/filecodebox/Chart.yaml)
           tag=${tag#v}
-          # 前后端分离: server 与 frontend 同版本列车,须等两个镜像都可拉
-          accept='Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json'
-          for image in server frontend; do
-            echo "等待 ghcr.io/filescodebox/${image}:${tag} 可拉取..."
-            deadline=$((SECONDS + 1500))
-            ok=""
-            while [ "$SECONDS" -lt "$deadline" ]; do
-              http=$(curl -s -o /dev/null -w '%{http_code}' -H "$accept" \
-                "https://ghcr.io/v2/filescodebox/${image}/manifests/${tag}")
-              if [ "$http" = "200" ]; then ok=1; break; fi
-              echo "  HTTP ${http}，30s 后重试..."
+          # 前后端分离落地(chart 带 frontend-deployment)后,两镜像同版本列车都要等
+          images="server"
+          [ -f charts/filecodebox/templates/frontend-deployment.yaml ] && images="server frontend"
+          for image in $images; do
+            ref="ghcr.io/filescodebox/${image}:${tag}"
+            echo "等待 ${ref} 可拉取..."
+            ok=0
+            for i in $(seq 1 50); do
+              if docker pull "$ref"; then ok=1; break; fi
+              echo "  未发布，30s 后重试（$i/50）..."
               sleep 30
             done
-            [ -n "$ok" ] || { echo "::error::ghcr.io/filescodebox/${image}:${tag} 25 分钟内未发布——server Release 未跑或失败"; exit 1; }
-            echo "  ${image} 镜像已发布"
+            [ "$ok" = "1" ] || { echo "::error::${ref} 25 分钟内未发布——对应 Release 未跑或失败"; exit 1; }
+            kind load docker-image "$ref" --name chart-testing
           done
 
       - name: Real install smoke (push)
