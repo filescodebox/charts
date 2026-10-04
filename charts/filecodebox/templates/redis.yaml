@@ -47,7 +47,11 @@ spec:
       containers:
         - name: redis
           securityContext:
+            # 显式 uid/gid 999 直跑: 官方镜像 entrypoint 默认 root(内部 gosu 降权),
+            # 与 runAsNonRoot 冲突;redis 无需 root 初始化,/data 由 fsGroup 授写权
             runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
             allowPrivilegeEscalation: false
             capabilities:
               drop:

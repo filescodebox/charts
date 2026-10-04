@@ -33,7 +33,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
-        fsGroup: 999   # postgres 镜像内 uid/gid=999,保证卷可写
+        fsGroup: 70   # postgres:17-alpine 镜像内 postgres uid/gid=70,保证卷可写
       containers:
         - name: postgresql
           image: {{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag | default "17-alpine" }}
