@@ -18,7 +18,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 
 ## 生产建议
 
-- `--set secret.adminPassword='<强密码>'` 覆盖默认管理密码 `admin123`
+- 管理密码 `secret.adminPassword` **留空即自动随机生成**（存 Secret、跨升级复用；弱默认 `admin123` 已废弃），需要固定值时才显式 `--set secret.adminPassword='<强密码>'`
 - `--set secret.production=true` 开启 secret 强校验；`FCB_JWT_SECRET` 全环境强制且要求 ≥32 位强随机（chart 自动生成的值已满足，显式传入短值会拒绝启动）
 - **反代/Ingress 部署必须设置 `trustedProxies`**（如 `--set trustedProxies[0]=10.0.0.0/8`），否则应用不采信 X-Forwarded-For，限流/失败锁定会按代理地址误伤所有用户
 - 通过内网 MinIO/WebDAV 使用对象存储时，设置 `config.security.ssrf.allow_private_networks: true`（或 env `FCB_SSRF_ALLOW_PRIVATE=true`）
@@ -35,7 +35,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | `replicaCount` | 副本数（SQLite 部署保持 1） | `1` |
 | `containerPort` | 容器内应用监听端口 | `12345` |
 | `image.repository` | 镜像 | `ghcr.io/filescodebox/server` |
-| `image.tag` | 镜像 tag | `.Chart.AppVersion`（如 `v0.1.1`） |
+| `image.tag` | 镜像 tag | `.Chart.AppVersion`（如 `v0.10.0`） |
 | `image.pullPolicy` | 拉取策略 | `IfNotPresent` |
 | `imagePullSecrets` | 私仓凭证 | `[]` |
 | `nameOverride` / `fullnameOverride` | 资源名覆盖 | `""` |
@@ -92,9 +92,11 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | 参数 | 说明 | 默认值 |
 |---|---|---|
 | `p2p.enabled` | 部署联邦注册中心单副本（节点注册/口令联邦路由，内存存储无状态）并自动注入 `FCB_FEDERATION_*`；`config.federation` 显式配置时让位。**需 server 镜像 ≥ 0.10.0**（federation 域服务在 core v0.8.0） | `false` |
-| `p2p.image.*` | ghcr.io/filescodebox/p2p（public，离线集群需导入） | `0.1` |
+| `p2p.image.*` | ghcr.io/filescodebox/p2p（public，离线集群需导入） | `0.3` |
 | `p2p.publicURL` | 本站对外地址（取件方直连下载用）；留空自动取 `config.server.base_url` | `""` |
 | `p2p.adminPassword` | p2p 管理 API 口令；留空 = 管理 API 禁用 | `""` |
+| `p2p.relay.enabled` | 直传加密中继兜底（1.3.7+，`FCB_P2P_RELAY_ENABLED`；直连失败时经中继转发） | `false` |
+| `p2p.relay.mbps` | 中继每节点带宽上限（Mbps） | 见 values.yaml |
 
 > 内置实例接线优先级高于 `config`（env 覆盖）；数据面组件继承顶层 `nodeSelector`/`tolerations`/`affinity`，离线集群需把对应镜像导入到被调度节点。
 
@@ -113,7 +115,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | `config` | server 配置（渲染为 ConfigMap，subPath 覆盖 `/app/config/config.yaml`）。**注意是整体替换镜像内置配置文件**，请对照 [config.example.yaml](https://github.com/filescodebox/server/blob/main/configs/config.example.yaml) 提供完整结构；留空则使用镜像内置配置 | `{}` |
 | `secret.create` / `existingSecret` | 是否创建 Secret / 引用已有 Secret | `true` / `""` |
 | `secret.jwtSecret` | JWT 密钥；留空随机生成并跨升级复用（lookup，Argo CD 下需显式指定） | `""` |
-| `secret.adminPassword` | 管理密码（`FCB_ADMIN_PASSWORD`） | `admin123` ⚠️ |
+| `secret.adminPassword` | 管理密码（`FCB_ADMIN_PASSWORD`）；留空自动随机生成并跨升级复用 | `""` |
 | `secret.production` | `FCB_PRODUCTION=1` 强制校验 secret | `false` |
 | `secret.serverMode` | `FCB_SERVER_MODE` | `release` |
 | `secret.database` / `secret.redis` | 追加 `FCB_DATABASE_*` / `FCB_REDIS_*` 键值对 | `{}` |
