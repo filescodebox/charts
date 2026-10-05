@@ -171,7 +171,8 @@ secret:
   existingSecret: ""
   # 留空 = 安装时随机生成并写入 Secret，升级时复用既有值(基于 lookup，Argo CD 等纯渲染工具不生效，需显式指定)
   jwtSecret: ""
-  adminPassword: "admin123"   # ⚠️ 生产必须覆盖，并建议同时开启 production
+  # 留空 = 安装时随机生成并写入 Secret(取回: kubectl get secret <名称> -o jsonpath="{.data.FCB_ADMIN_PASSWORD}" | base64 -d)；升级复用既有值
+  adminPassword: ""
   production: false           # FCB_PRODUCTION=1: 强制校验 secret，生产建议 true
   serverMode: "release"       # FCB_SERVER_MODE: release | debug | test
   database: {}                # 附加 FCB_DATABASE_* 键值对，如 {HOST: mysql, PASSWORD: xxx}

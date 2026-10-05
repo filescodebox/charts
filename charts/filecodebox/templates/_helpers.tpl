@@ -130,6 +130,24 @@ Secret 名: 优先 existingSecret
 {{- end }}
 
 {{/*
+稳定的管理员密码: 用户显式值 > 集群中既有 Secret 的值 > 随机生成。
+2026-10-05 安全审计：默认值由 admin123 改为随机生成(lookup 复用,升级稳定)；
+Argo CD 等纯渲染工具请显式设置 secret.adminPassword。
+*/}}
+{{- define "filecodebox.adminPassword" -}}
+{{- if .Values.secret.adminPassword }}
+{{- .Values.secret.adminPassword }}
+{{- else }}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace (include "filecodebox.secretName" .) }}
+{{- if and $existing $existing.data }}
+{{- index $existing.data "FCB_ADMIN_PASSWORD" | b64dec }}
+{{- else }}
+{{- randAlphaNum 24 }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
 数据面组件完整资源名(redis/mysql/postgresql;独立 name 后缀,与后端 Service/ServiceMonitor 选择器隔离)
 */}}
 {{- define "filecodebox.redis.fullname" -}}

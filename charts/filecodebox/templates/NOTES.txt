@@ -24,7 +24,8 @@
    ⚠️  当前仍在使用默认管理密码 admin123 —— 生产环境请:
        helm upgrade --set secret.adminPassword=<强密码> --set secret.production=true
 {{- else }}
-   管理密码已通过 Secret {{ include "filecodebox.secretName" . }} 注入。
+   管理密码已通过 Secret {{ include "filecodebox.secretName" . }} 注入{{- if not .Values.secret.adminPassword }}(随机生成,取回:
+       kubectl get secret {{ include "filecodebox.secretName" . }} --namespace {{ .Release.Namespace }} -o jsonpath='{.data.FCB_ADMIN_PASSWORD}' | base64 -d){{- end }}。
 {{- end }}
 
 3. 数据目录: {{ .Values.persistence.mountPath }}
