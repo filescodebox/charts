@@ -13,7 +13,7 @@
 
 | Chart | 说明 | Chart 版本 | App 版本 |
 |---|---|---|---|
-| `filecodebox` | 前后端分离双 Deployment：[frontend](https://github.com/filescodebox/frontend)（nginx 静态+反代）→ [server](https://github.com/filescodebox/server)（API）；Ingress 指向 frontend Service | 1.3.5 | v0.9.3 |
+| `filecodebox` | 前后端分离双 Deployment：[frontend](https://github.com/filescodebox/frontend)（nginx 静态+反代）→ [server](https://github.com/filescodebox/server)（API）；Ingress 指向 frontend Service | 1.3.10 | v0.12.4 |
 
 支持可选组件：Redis（默认开）/ MySQL / PostgreSQL / S3 对象存储（SeaweedFS）/ PVC / Ingress / ServiceMonitor(Prometheus)。
 

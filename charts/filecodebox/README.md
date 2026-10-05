@@ -35,7 +35,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | `replicaCount` | 副本数（SQLite 部署保持 1） | `1` |
 | `containerPort` | 容器内应用监听端口 | `12345` |
 | `image.repository` | 镜像 | `ghcr.io/filescodebox/server` |
-| `image.tag` | 镜像 tag | `.Chart.AppVersion`（如 `v0.10.0`） |
+| `image.tag` | 镜像 tag | `.Chart.AppVersion`（如 `v0.12.4`） |
 | `image.pullPolicy` | 拉取策略 | `IfNotPresent` |
 | `imagePullSecrets` | 私仓凭证 | `[]` |
 | `nameOverride` / `fullnameOverride` | 资源名覆盖 | `""` |
@@ -91,7 +91,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 
 | 参数 | 说明 | 默认值 |
 |---|---|---|
-| `p2p.enabled` | 部署联邦注册中心单副本（节点注册/口令联邦路由，内存存储无状态）并自动注入 `FCB_FEDERATION_*`；`config.federation` 显式配置时让位。**需 server 镜像 ≥ 0.10.0**（federation 域服务在 core v0.8.0） | `false` |
+| `p2p.enabled` | 部署联邦注册中心单副本（节点注册/口令联邦路由，内存存储无状态）并自动注入 `FCB_FEDERATION_*`；`config.federation` 显式配置时让位。**需 server 镜像 ≥ 0.10.0**（federation 域服务在 core v0.8.0）。默认镜像 tag `0.4` 起为传输协议 v2——**直传双端（desktop/p2pc）须同版升级**，旧版客户端互传首帧失败 | `false` |
 | `p2p.image.*` | ghcr.io/filescodebox/p2p（public，离线集群需导入） | `0.3` |
 | `p2p.publicURL` | 本站对外地址（取件方直连下载用）；留空自动取 `config.server.base_url` | `""` |
 | `p2p.adminPassword` | p2p 管理 API 口令；留空 = 管理 API 禁用 | `""` |
