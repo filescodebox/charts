@@ -1,0 +1,83 @@
+name: Sync AppVersion
+
+# 组件发版自动对齐 chart：
+#   server 仓打 v* tag → Release 成功后 repository_dispatch(component-release)
+#   触发本工作流 → appVersion 对齐组件版本、chart version patch 自动 +1 →
+#   push main 后由既有的 Release Charts 工作流(chart-releaser + OCI)自动发版。
+# 镜像 tag 缺省取 AppVersion 剥 v 前缀(_helpers.tpl)，改 Chart.yaml 一处即同时
+# 锁定 server/frontend 两镜像。
+# workflow_dispatch 支持手工补齐/修复(输入形如 v0.12.5 或 0.12.5，统一带 v 落盘)。
+# 幂等：appVersion 未变化时优雅跳过，不产生空提交。
+
+on:
+  repository_dispatch:
+    types: [component-release]
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: '组件版本（如 v0.12.5 或 0.12.5）'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve target version
+        id: ver
+        run: |
+          RAW="${{ inputs.app_version || github.event.client_payload.app_version }}"
+          if [ -z "$RAW" ]; then
+            echo "::error::未提供 app_version（repository_dispatch 需要 client_payload.app_version）"
+            exit 1
+          fi
+          APP="v${RAW#v}"          # 统一带 v 落盘(appVersion 惯例)
+          TAG="${APP#v}"           # 镜像 tag 无 v 前缀(ghcr 形态)，仅用于日志核对
+          echo "app=$APP tag=$TAG"
+          echo "app=$APP" >> "$GITHUB_OUTPUT"
+
+      - name: Compute chart version bump
+        id: chart
+        run: |
+          CUR=$(awk '/^version:/ {print $2}' charts/filecodebox/Chart.yaml)
+          MAJOR=$(echo "$CUR" | cut -d. -f1)
+          MINOR=$(echo "$CUR" | cut -d. -f2)
+          PATCH=$(echo "$CUR" | cut -d. -f3)
+          NEXT="$MAJOR.$MINOR.$((PATCH + 1))"
+          echo "cur=$CUR next=$NEXT"
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Align Chart.yaml
+        id: align
+        run: |
+          APP="${{ steps.ver.outputs.app }}"
+          CUR_APP=$(awk '/^appVersion:/ {print $2}' charts/filecodebox/Chart.yaml | tr -d '"')
+          if [ "$CUR_APP" = "$APP" ]; then
+            echo "appVersion 已是 $APP，跳过（重复触发/回放）"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          sed -i "s|^appVersion: .*|appVersion: \"$APP\"|" charts/filecodebox/Chart.yaml
+          sed -i "s|^version: .*|version: ${{ steps.chart.outputs.next }}|" charts/filecodebox/Chart.yaml
+          echo "--- Chart.yaml 版本段 ---"
+          grep -E '^(version|appVersion):' charts/filecodebox/Chart.yaml
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.align.outputs.changed == 'true'
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git add charts/filecodebox/Chart.yaml
+          git commit -m "chore(release): appVersion → ${{ steps.ver.outputs.app }}（chart ${{ steps.chart.outputs.next }}，组件发版自动对齐）"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
