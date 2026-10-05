@@ -228,7 +228,7 @@ p2p:
   enabled: false
   image:
     repository: ghcr.io/filescodebox/p2p
-    tag: "0.3"
+    tag: "0.4"
     pullPolicy: IfNotPresent
   # 本站对外地址(取件方直连下载用): 留空自动取 config.server.base_url;
   # 都为空则不注入该项,联邦初始化会失败降级(日志可见)
