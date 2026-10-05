@@ -82,12 +82,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # GITHUB_TOKEN 的 push 不会触发其他工作流（GitHub 防递归），显式调起发版
+      # GITHUB_TOKEN 的 push 不会触发其他工作流（GitHub 防递归），显式调起发版。
+      # 注意必须用 PAT：GITHUB_TOKEN 调 workflow-dispatch API 恒 403（2026-10-06
+      # 治理：此前三连挂 403，chart 1.3.12/13/14 的真正发版从未执行）。RELEASE_PAT
+      # 与生态 DESKTOP_PAT/FNOS_PAT 同源（gh auth token，Settings→Secrets 配置）。
       - name: Trigger Release Charts
         if: steps.align.outputs.changed == 'true'
         run: |
           curl -fsSL -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.RELEASE_PAT }}" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/release.yml/dispatches \
             -d '{"ref":"main"}'
