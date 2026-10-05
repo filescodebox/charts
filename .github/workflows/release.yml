@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+  # 供 sync-appversion（GITHUB_TOKEN push 不触发其他工作流）显式调用发版
+  workflow_dispatch:
 
 permissions:
   contents: write
