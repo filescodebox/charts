@@ -43,7 +43,7 @@ containerPort: 12345
 
 image:
   repository: ghcr.io/filescodebox/server
-  tag: ""            # 默认取 .Chart.AppVersion 并剥 v 前缀(ghcr tag 为 0.6.4 形态,无 v)
+  tag: ""            # 默认取 .Chart.AppVersion 并剥 v 前缀(ghcr tag 为 0.14.0 形态,无 v)
   pullPolicy: IfNotPresent
 
 # 前端容器(nginx 静态 + API 反代): 无状态,不挂 PVC;后端地址自动指向本 release 的

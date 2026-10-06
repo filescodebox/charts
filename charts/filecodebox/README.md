@@ -35,7 +35,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | `replicaCount` | 副本数（SQLite 部署保持 1） | `1` |
 | `containerPort` | 容器内应用监听端口 | `12345` |
 | `image.repository` | 镜像 | `ghcr.io/filescodebox/server` |
-| `image.tag` | 镜像 tag | `.Chart.AppVersion`（如 `v0.12.4`） |
+| `image.tag` | 镜像 tag | `.Chart.AppVersion`（如 `v0.14.0`） |
 | `image.pullPolicy` | 拉取策略 | `IfNotPresent` |
 | `imagePullSecrets` | 私仓凭证 | `[]` |
 | `nameOverride` / `fullnameOverride` | 资源名覆盖 | `""` |
