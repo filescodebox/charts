@@ -39,8 +39,8 @@
 {{- if .Values.redis.enabled }}
    Redis: 内置 {{ include "filecodebox.redis.fullname" . }} (已自动注入 FCB_REDIS_HOST;{{ if .Values.redis.auth.password }}已启用密码{{ else }}无密码,仅限集群内{{ end }}){{ if get (.Values.config | default dict) "redis" }} ⚠️ config.redis 已显式配置,内置实例未接线{{ end }}
 {{- else }}
-   Redis: 未启用 —— 匿名取件/文件直传分享等依赖 Redis 的功能将降级,
-   生产请设 config.redis.host 指向外部 Redis。
+   Redis: 未启用 —— 单机内存模式(core v0.14.0+):匿名取件/直传全功能可用,
+   重启丢失未取件映射;多副本部署或需重启不丢请设 config.redis.host 指向外部 Redis。
 {{- end }}
 {{- if .Values.s3.enabled }}
    对象存储: 内置 SeaweedFS(S3 兼容) {{ include "filecodebox.s3.fullname" . }} (桶 {{ .Values.s3.bucket }} 已自动创建并注入 FCB_STORAGE_*; 凭据在 Secret {{ include "filecodebox.s3.fullname" . }}{{ if .Values.s3.corsOrigins }}; 桶 CORS 已写入{{ end }}){{ if get (.Values.config | default dict) "storage" }} ⚠️ config.storage 已显式配置,内置实例未接线{{ end }}

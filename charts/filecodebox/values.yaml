@@ -217,10 +217,12 @@ trustedProxies: []
 #  - 173.245.48.0/20
 
 # ── 内置数据面服务 ──────────────────────────────────────────────────
-# Redis: 匿名取件码映射/预签名/分布式限流/JWT 黑名单强依赖(缺失时这些功能
-# 降级)。默认开启=与 docker compose 形态对齐、开箱即用;单副本+AOF+PVC。
-# 生产/多副本建议 redis.enabled=false + config.redis.host 指向外部 Redis
-# (config 里显式配置了 redis 段时本开关自动让位,不注入覆盖 env)。
+# Redis: 取件码映射/presign 会话的持久化与多副本共享面(core v0.14.0 起单机关闭
+# 亦可全功能运行——进程内 KV,重启丢失映射)。默认开启=与 docker compose 形态
+# 对齐、开箱即用;单副本+AOF+PVC。
+# 多副本(replicaCount>1)必须保持可用 Redis(配置广播依赖);生产建议指向外部
+# Redis(redis.enabled=false + config.redis.host;config 显式配置 redis 段时
+# 本开关自动让位,不注入覆盖 env)。
 # 三个组件均继承顶层 nodeSelector/tolerations/affinity(镜像手动导入的
 # 离线集群注意把镜像导入到被调度的节点)。
 redis:

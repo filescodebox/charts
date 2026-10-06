@@ -76,7 +76,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 
 | 参数 | 说明 | 默认值 |
 |---|---|---|
-| `redis.enabled` | 内置 Redis（匿名取件码等强依赖）；config 显式配置 `redis` 段时自动让位 | `true` |
+| `redis.enabled` | 内置 Redis（取件码映射持久化；多副本共享/广播依赖）；单机关闭后为内存模式（重启丢映射，core v0.14.0+）；config 显式配置 `redis` 段时自动让位 | `true` |
 | `redis.image.*` / `auth.password` / `persistence.*` / `resources` | 镜像 `redis:7-alpine`；密码留空=无密码(仅集群内)；AOF 持久化 1Gi | 见 values.yaml |
 | `mysql.enabled` / `postgresql.enabled` | 内置 MySQL 8.4 / PostgreSQL 17 单副本 StatefulSet（默认关）；开启即自动注入 `FCB_DATABASE_*` | `false` |
 | `mysql.auth.*` / `postgresql.auth.*` | `username`(默认 filecodebox)、`database`(默认 filecodebox)、密码留空=随机生成并跨升级复用 | 见 values.yaml |
