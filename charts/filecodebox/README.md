@@ -173,6 +173,26 @@ ingress:
         - fcb.example.com
 ```
 
+## 多副本拆分（replicaCount > 1）
+
+`replicaCount > 1` 时 chart 自动从"单实例全功能"切换为**双平面拓扑**（同一镜像、不同运行模式，需 server 镜像包含部署模式支持，详见 core 仓 `docs/specs/2026-10-06-multi-replica-deployment-modes.md`）：
+
+| 组件 | 运行模式 | 副本 | 职责 |
+|---|---|---|---|
+| server | `FCB_DEPLOY_MODE=public` | N | 公开面路由（分享/上传/下载/用户），公网入口只指向它 |
+| server-admin | `FCB_DEPLOY_MODE=admin` | 1 | 管理面路由（admin/MCP/setup）、后台任务、DB 迁移、配置唯一写者（变更 Redis 广播同步到 public 副本） |
+| admin-ui | —（可选） | 1 | admin 控制台 SPA（nginx → server-admin），随 `serverAdmin.ingress.enabled` 渲染 |
+
+命名规则一句话：主 server 沿用历史全名 `<release>-filecodebox`（升级兼容，frontend 反代写死该名），拆分新增资源在 release 名下用短后缀——`<release>-admin`、`<release>-admin-ui`。
+
+要点：
+
+- **硬约束**：MySQL/Postgres + Redis 必配（public 副本启动时检测到 SQLite 直接拒绝）；存储须 S3 后端或多节点可读写卷（RWX）；`federation` 在拆分模式自动降级关闭（节点身份是进程级密钥，多副本语义未定义）。
+- **管理端入口**：开启 `serverAdmin.ingress`（独立域名，建议注解挂 IP 白名单/内网认证），或不开 Ingress 用 `kubectl port-forward svc/<release>-admin 12345` 直连 API（curl/MCP 集成够用；控制台 UI 需 admin frontend + Ingress）。
+- 公网 Ingress（`ingress.*`）永远只指 frontend→public 面；管理面 API 在 public 副本上物理 404（进程内门卫），不是靠入口层拦截。
+- 限流计数自动注入 `FCB_RATE_LIMIT_USE_REDIS=true`（多实例共享）；DB 迁移只在 admin 实例执行，public 副本自动跳过（防多副本迁移竞态）。
+- `replicaCount = 1` 时渲染与历史版本完全一致（单 Deployment，standalone 模式），升级零迁移。
+
 ## 限制说明
 
 - 使用 Argo CD / Flux 等纯渲染（`helm template`）工具时，`lookup` 不可用，`secret.jwtSecret` 会随每次渲染重新随机 —— 请显式指定该值或改用 external-secrets。

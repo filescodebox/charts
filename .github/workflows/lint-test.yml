@@ -44,6 +44,21 @@ jobs:
         if: github.event_name != 'push' && steps.list-changed.outputs.changed == 'true'
         run: ct lint --target-branch ${{ github.event.repository.default_branch }}
 
+      # 多副本拆分拓扑守卫(纯渲染,无需集群):replicaCount>1 必须渲染出
+      # public×N + admin×1 双平面 + admin 控制台入口链,且 server Service 只选 public 平面
+      - name: Render split-mode topology (PR)
+        if: github.event_name != 'push'
+        run: |
+          out=$(helm template fcb charts/filecodebox \
+            --set replicaCount=2 --set serverAdmin.ingress.enabled=true)
+          echo "$out" | grep -q 'value: "public"'
+          echo "$out" | grep -q 'value: "admin"'
+          echo "$out" | grep -q 'component: server-public'
+          echo "$out" | grep -q 'component: server-admin'
+          n=$(echo "$out" | grep -c '^kind: Deployment')
+          [ "$n" -eq 5 ] || { echo "::error::拆分模式应渲染 5 个 Deployment(public/admin/frontend/admin-frontend/redis)，实得 $n"; exit 1; }
+          echo "split topology OK"
+
       - name: Create kind cluster
         if: github.event_name == 'push' || steps.list-changed.outputs.changed == 'true'
         uses: helm/kind-action@v1

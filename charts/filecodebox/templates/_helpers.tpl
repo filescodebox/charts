@@ -148,6 +148,46 @@ Argo CD 等纯渲染工具请显式设置 secret.adminPassword。
 {{- end }}
 
 {{/*
+server 平面 component(多副本拆分): standalone → server(与历史一致); 拆分 public → server-public; admin → server-admin
+入参 dict: root(chart 上下文) / plane(standalone|public|admin)
+*/}}
+{{- define "filecodebox.server.component" -}}
+{{- if eq .plane "admin" }}server-admin{{- else if eq .plane "public" }}server-public{{- else }}server{{- end }}
+{{- end }}
+
+{{/*
+server 平面完整资源名: standalone/public 沿用 fullname(资源名不变,兼容升级);
+admin 用短名 <release>-admin(release 命名空间内无歧义,不再叠 chart 名)
+*/}}
+{{- define "filecodebox.server.fullname" -}}
+{{- if eq .plane "admin" -}}
+{{- printf "%s-admin" .root.Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- include "filecodebox.fullname" .root -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+server 平面选择器标签(component 隔离 public/admin 两个 Deployment 的 Service 选择)
+*/}}
+{{- define "filecodebox.server.selectorLabels" -}}
+{{ include "filecodebox.selectorLabels" .root }}
+app.kubernetes.io/component: {{ include "filecodebox.server.component" . }}
+{{- end }}
+
+{{/*
+server 平面通用标签
+*/}}
+{{- define "filecodebox.server.labels" -}}
+helm.sh/chart: {{ include "filecodebox.chart" .root }}
+{{ include "filecodebox.server.selectorLabels" . }}
+{{- if .root.Chart.AppVersion }}
+app.kubernetes.io/version: {{ .root.Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .root.Release.Service }}
+{{- end }}
+
+{{/*
 数据面组件完整资源名(redis/mysql/postgresql;独立 name 后缀,与后端 Service/ServiceMonitor 选择器隔离)
 */}}
 {{- define "filecodebox.redis.fullname" -}}
