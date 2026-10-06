@@ -190,6 +190,7 @@ ingress:
 - **硬约束**：MySQL/Postgres + Redis 必配（public 副本启动时检测到 SQLite 直接拒绝）；存储须 S3 后端或多节点可读写卷（RWX）；`federation` 在拆分模式自动降级关闭（节点身份是进程级密钥，多副本语义未定义）。
 - **管理端入口**：开启 `serverAdmin.ingress`（独立域名，建议注解挂 IP 白名单/内网认证），或不开 Ingress 用 `kubectl port-forward svc/<release>-admin 12345` 直连 API（curl/MCP 集成够用；控制台 UI 需 admin frontend + Ingress）。
 - 公网 Ingress（`ingress.*`）永远只指 frontend→public 面；管理面 API 在 public 副本上物理 404（进程内门卫），不是靠入口层拦截。
+- 拆分模式下建议在 config 中设 `ui.show_admin_addr: false`——公开站点页脚不再展示管理入口（指向 public 副本的管理页只有 UI 没有后端）。
 - 限流计数自动注入 `FCB_RATE_LIMIT_USE_REDIS=true`（多实例共享）；DB 迁移只在 admin 实例执行，public 副本自动跳过（防多副本迁移竞态）。
 - `replicaCount = 1` 时渲染与历史版本完全一致（单 Deployment，standalone 模式），升级零迁移。
 
