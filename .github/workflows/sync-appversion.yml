@@ -2,12 +2,16 @@ name: Sync AppVersion
 
 # 组件发版自动对齐 chart：
 #   server 仓打 v* tag → Release 成功后 repository_dispatch(component-release)
-#   触发本工作流 → appVersion 对齐组件版本、chart version patch 自动 +1 →
-#   push main 后由既有的 Release Charts 工作流(chart-releaser + OCI)自动发版。
+#   触发本工作流 → appVersion 对齐组件版本、chart version patch 自动 +1 → push main。
+#
+# 发版触发(2026-10-08 治理):push 用 RELEASE_PAT——PAT 的 push 会触发 on:push 的
+# Release Charts 工作流,消除旧链路「GITHUB_TOKEN push 不触发 + 显式 curl dispatch
+# 单点」的半断裂形态(RELEASE_PAT 失效时提交落库而 chart 永不发版,1.3.12/13/14 事故)。
 # 镜像 tag 缺省取 AppVersion 剥 v 前缀(_helpers.tpl)，改 Chart.yaml 一处即同时
 # 锁定 server/frontend 两镜像。
 # workflow_dispatch 支持手工补齐/修复(输入形如 v0.12.5 或 0.12.5，统一带 v 落盘)。
-# 幂等：appVersion 未变化时优雅跳过，不产生空提交。
+# 幂等：appVersion 已对齐时按「目标 chart Release 是否已存在」决定补发,不再看 changed 标志
+# (重跑/回放也能补上历史断链缺失的发版)。
 
 on:
   repository_dispatch:
@@ -61,36 +65,45 @@ jobs:
           APP="${{ steps.ver.outputs.app }}"
           CUR_APP=$(awk '/^appVersion:/ {print $2}' charts/pigeonbox/Chart.yaml | tr -d '"')
           if [ "$CUR_APP" = "$APP" ]; then
-            echo "appVersion 已是 $APP，跳过（重复触发/回放）"
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "appVersion 已是 $APP（重复触发/回放），changed=false"
+          else
+            sed -i "s|^appVersion: .*|appVersion: \"$APP\"|" charts/pigeonbox/Chart.yaml
+            sed -i "s|^version: .*|version: ${{ steps.chart.outputs.next }}|" charts/pigeonbox/Chart.yaml
+            echo "--- Chart.yaml 版本段 ---"
+            grep -E '^(version|appVersion):' charts/pigeonbox/Chart.yaml
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-          sed -i "s|^appVersion: .*|appVersion: \"$APP\"|" charts/pigeonbox/Chart.yaml
-          sed -i "s|^version: .*|version: ${{ steps.chart.outputs.next }}|" charts/pigeonbox/Chart.yaml
-          echo "--- Chart.yaml 版本段 ---"
-          grep -E '^(version|appVersion):' charts/pigeonbox/Chart.yaml
-          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "next_chart=$(awk '/^version:/ {print $2}' charts/pigeonbox/Chart.yaml)" >> "$GITHUB_OUTPUT"
 
-      - name: Commit and push
+      # PAT 的 push 才会触发 on:push 的 Release Charts 工作流(GITHUB_TOKEN 被 GitHub
+      # 防递归限制静默跳过——chart 1.3.12/13/14 从未发版的根因)。RELEASE_PAT 缺失
+      # 或失效必须在此处响,而不是等「提交落库、永不发版」。
+      - name: Commit and push(RELEASE_PAT,触发发版)
         if: steps.align.outputs.changed == 'true'
+        env:
+          PAT: ${{ secrets.RELEASE_PAT }}
         run: |
+          if [ -z "$PAT" ]; then
+            echo "::error::缺 secret RELEASE_PAT——PAT push 才能触发 Release Charts(GITHUB_TOKEN 不触发工作流)。Settings→Secrets→Actions 配置后重跑。"
+            exit 1
+          fi
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${PAT}@github.com/${{ github.repository }}.git"
           git add charts/pigeonbox/Chart.yaml
           git commit -m "chore(release): appVersion → ${{ steps.ver.outputs.app }}（chart ${{ steps.chart.outputs.next }}，组件发版自动对齐）"
           git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # GITHUB_TOKEN 的 push 不会触发其他工作流（GitHub 防递归），显式调起发版。
-      # 注意必须用 PAT：GITHUB_TOKEN 调 workflow-dispatch API 恒 403（2026-10-06
-      # 治理：此前三连挂 403，chart 1.3.12/13/14 的真正发版从未执行）。RELEASE_PAT
-      # 与生态 DESKTOP_PAT/FNOS_PAT 同源（gh auth token，Settings→Secrets 配置）。
-      - name: Trigger Release Charts
-        if: steps.align.outputs.changed == 'true'
+      # 幂等兜底:appVersion 已对齐但目标 chart Release 缺失(历史断链/发版失败) → 显式补发
+      - name: 补发检查(release 缺失才触发)
+        if: steps.align.outputs.changed != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
         run: |
-          curl -fsSL -X POST \
-            -H "Authorization: Bearer ${{ secrets.RELEASE_PAT }}" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/release.yml/dispatches \
-            -d '{"ref":"main"}'
+          REL="pigeonbox-${{ steps.align.outputs.next_chart }}"
+          if gh release view "$REL" -R "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "chart $REL 已发布,无需补发"
+          else
+            echo "chart $REL 缺失(历史断链),显式触发 Release Charts"
+            gh workflow run release.yml -R "${{ github.repository }}" --ref main
+          fi

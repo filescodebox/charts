@@ -74,20 +74,26 @@ jobs:
         run: |
           tag=$(awk '/^appVersion:/{gsub(/"/,"",$2); print $2; exit}' charts/pigeonbox/Chart.yaml)
           tag=${tag#v}
-          # 前后端分离落地(chart 带 frontend-deployment)后,两镜像同版本列车都要等
+          # 前后端分离落地(chart 带 frontend-deployment)后,两镜像同版本列车都要等;
+          # 两路并行等待(qemu 多架构 10-30 分钟,串行会顶到 45 分钟窗口边缘)
           images="server"
           [ -f charts/pigeonbox/templates/frontend-deployment.yaml ] && images="server frontend"
-          for image in $images; do
-            ref="ghcr.io/pigeonbox/${image}:${tag}"
+          pull_one() {
+            local ref="ghcr.io/pigeonbox/$1:${tag}" i
             echo "等待 ${ref} 可拉取..."
-            ok=0
             for i in $(seq 1 90); do
-              if docker pull "$ref"; then ok=1; break; fi
-              echo "  未发布，30s 后重试（$i/90）..."
+              if docker pull -q "$ref" >/dev/null 2>&1; then echo "  ✓ $ref"; return 0; fi
               sleep 30
             done
-            [ "$ok" = "1" ] || { echo "::error::${ref} 25 分钟内未发布——对应 Release 未跑或失败"; exit 1; }
-            kind load docker-image "$ref" --name chart-testing
+            echo "::error::${ref} 45 分钟内未发布——对应 Release 未跑或失败"
+            return 1
+          }
+          for image in $images; do pull_one "$image" & done
+          fails=0
+          for j in $(jobs -p); do wait "$j" || fails=1; done
+          [ "$fails" = 0 ] || exit 1
+          for image in $images; do
+            kind load docker-image "ghcr.io/pigeonbox/${image}:${tag}" --name chart-testing
           done
 
       - name: Real install smoke (push)
