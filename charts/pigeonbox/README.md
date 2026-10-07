@@ -35,7 +35,7 @@ helm install pigeonbox pigeonbox/pigeonbox --namespace pigeonbox --create-namesp
 | `replicaCount` | 副本数（SQLite 部署保持 1） | `1` |
 | `containerPort` | 容器内应用监听端口 | `12345` |
 | `image.repository` | 镜像 | `ghcr.io/pigeonbox/server` |
-| `image.tag` | 镜像 tag | `.Chart.AppVersion`（如 `v0.14.0`） |
+| `image.tag` | 镜像 tag | `.Chart.AppVersion`（如 `v0.15.3`） |
 | `image.pullPolicy` | 拉取策略 | `IfNotPresent` |
 | `imagePullSecrets` | 私仓凭证 | `[]` |
 | `nameOverride` / `fullnameOverride` | 资源名覆盖 | `""` |
