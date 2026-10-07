@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "filecodebox.fullname" . }}
+  name: {{ include "pigeonbox.fullname" . }}
   labels:
-    {{- include "filecodebox.labels" . | nindent 4 }}
+    {{- include "pigeonbox.labels" . | nindent 4 }}
 spec:
   accessModes:
     {{- toYaml .Values.persistence.accessModes | nindent 4 }}

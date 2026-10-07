@@ -2,9 +2,9 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "filecodebox.fullname" . }}
+  name: {{ include "pigeonbox.fullname" . }}
   labels:
-    {{- include "filecodebox.labels" . | nindent 4 }}
+    {{- include "pigeonbox.labels" . | nindent 4 }}
     {{- with .Values.metrics.serviceMonitor.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -14,7 +14,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      {{- include "filecodebox.selectorLabels" . | nindent 6 }}
+      {{- include "pigeonbox.selectorLabels" . | nindent 6 }}
   endpoints:
     - port: http
       path: {{ .Values.metrics.serviceMonitor.path }}

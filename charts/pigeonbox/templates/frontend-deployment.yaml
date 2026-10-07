@@ -2,20 +2,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "filecodebox.frontend.fullname" . }}
+  name: {{ include "pigeonbox.frontend.fullname" . }}
   labels:
-    {{- include "filecodebox.frontend.labels" . | nindent 4 }}
+    {{- include "pigeonbox.frontend.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.frontend.replicaCount }}
   strategy:
     type: RollingUpdate
   selector:
     matchLabels:
-      {{- include "filecodebox.frontend.selectorLabels" . | nindent 6 }}
+      {{- include "pigeonbox.frontend.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "filecodebox.frontend.selectorLabels" . | nindent 8 }}
+        {{- include "pigeonbox.frontend.selectorLabels" . | nindent 8 }}
         {{- with .Values.frontend.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -31,12 +31,12 @@ spec:
         - name: frontend
           securityContext:
             {{- toYaml .Values.frontend.securityContext | nindent 12 }}
-          image: {{ include "filecodebox.frontend.image" . }}
+          image: {{ include "pigeonbox.frontend.image" . }}
           imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
           # 反代上游 = 本 release 的后端 Service(镜像 envsubst 渲染进 nginx 配置)
           env:
             - name: BACKEND_HOST
-              value: {{ include "filecodebox.fullname" . }}
+              value: {{ include "pigeonbox.fullname" . }}
             - name: BACKEND_PORT
               value: {{ .Values.service.port | quote }}
             - name: CLIENT_MAX_BODY_SIZE

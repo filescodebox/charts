@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "filecodebox.redis.fullname" . }}
+  name: {{ include "pigeonbox.redis.fullname" . }}
   labels:
-    {{- include "filecodebox.data.labels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+    {{- include "pigeonbox.data.labels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 spec:
   accessModes:
     {{- toYaml .Values.redis.persistence.accessModes | nindent 4 }}
@@ -22,20 +22,20 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "filecodebox.redis.fullname" . }}
+  name: {{ include "pigeonbox.redis.fullname" . }}
   labels:
-    {{- include "filecodebox.data.labels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+    {{- include "pigeonbox.data.labels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 spec:
   replicas: 1
   strategy:
     type: Recreate   # RWO 卷不支持双挂载
   selector:
     matchLabels:
-      {{- include "filecodebox.data.selectorLabels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 6 }}
+      {{- include "pigeonbox.data.selectorLabels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "filecodebox.data.selectorLabels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 8 }}
+        {{- include "pigeonbox.data.selectorLabels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -110,7 +110,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: {{ default (include "filecodebox.redis.fullname" .) .Values.redis.persistence.existingClaim }}
+            claimName: {{ default (include "pigeonbox.redis.fullname" .) .Values.redis.persistence.existingClaim }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -127,9 +127,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "filecodebox.redis.fullname" . }}
+  name: {{ include "pigeonbox.redis.fullname" . }}
   labels:
-    {{- include "filecodebox.data.labels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+    {{- include "pigeonbox.data.labels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
@@ -138,5 +138,5 @@ spec:
       protocol: TCP
       name: redis
   selector:
-    {{- include "filecodebox.data.selectorLabels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+    {{- include "pigeonbox.data.selectorLabels" (dict "component" "redis" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 {{- end }}

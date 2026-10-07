@@ -1,13 +1,13 @@
 {{- if .Values.mysql.enabled }}
-{{- $secretName := include "filecodebox.mysql.fullname" . }}
-{{- $userPw := include "filecodebox.stablePassword" (dict "secretName" $secretName "key" "user-password" "explicit" .Values.mysql.auth.userPassword "Release" .Release) }}
-{{- $rootPw := include "filecodebox.stablePassword" (dict "secretName" $secretName "key" "root-password" "explicit" .Values.mysql.auth.rootPassword "Release" .Release) }}
+{{- $secretName := include "pigeonbox.mysql.fullname" . }}
+{{- $userPw := include "pigeonbox.stablePassword" (dict "secretName" $secretName "key" "user-password" "explicit" .Values.mysql.auth.userPassword "Release" .Release) }}
+{{- $rootPw := include "pigeonbox.stablePassword" (dict "secretName" $secretName "key" "root-password" "explicit" .Values.mysql.auth.rootPassword "Release" .Release) }}
 apiVersion: v1
 kind: Secret
 metadata:
   name: {{ $secretName }}
   labels:
-    {{- include "filecodebox.data.labels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+    {{- include "pigeonbox.data.labels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 type: Opaque
 stringData:
   root-password: {{ $rootPw | quote }}
@@ -18,17 +18,17 @@ kind: StatefulSet
 metadata:
   name: {{ $secretName }}
   labels:
-    {{- include "filecodebox.data.labels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+    {{- include "pigeonbox.data.labels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 spec:
   replicas: 1
   serviceName: {{ $secretName }}
   selector:
     matchLabels:
-      {{- include "filecodebox.data.selectorLabels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 6 }}
+      {{- include "pigeonbox.data.selectorLabels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "filecodebox.data.selectorLabels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 8 }}
+        {{- include "pigeonbox.data.selectorLabels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -105,7 +105,7 @@ kind: Service
 metadata:
   name: {{ $secretName }}
   labels:
-    {{- include "filecodebox.data.labels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+    {{- include "pigeonbox.data.labels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
@@ -114,5 +114,5 @@ spec:
       protocol: TCP
       name: mysql
   selector:
-    {{- include "filecodebox.data.selectorLabels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+    {{- include "pigeonbox.data.selectorLabels" (dict "component" "mysql" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 {{- end }}

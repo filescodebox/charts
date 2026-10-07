@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ include "filecodebox.fullname" . }}-test-connection
+  name: {{ include "pigeonbox.fullname" . }}-test-connection
   labels:
-    {{- include "filecodebox.labels" . | nindent 4 }}
+    {{- include "pigeonbox.labels" . | nindent 4 }}
   annotations:
     helm.sh/hook: test
 spec:
@@ -15,11 +15,11 @@ spec:
       command: ["wget"]
       args:
         - "--spider"
-        - "{{ include "filecodebox.frontend.fullname" . }}:{{ .Values.frontend.service.port }}/"
+        - "{{ include "pigeonbox.frontend.fullname" . }}:{{ .Values.frontend.service.port }}/"
     # 后端容器: /health 支持 HEAD(busybox --spider 发 HEAD;/live 不会)
     - name: wget-backend
       image: busybox:1.36
       command: ["wget"]
       args:
         - "--spider"
-        - "{{ include "filecodebox.fullname" . }}:{{ .Values.service.port }}/health"
+        - "{{ include "pigeonbox.fullname" . }}:{{ .Values.service.port }}/health"

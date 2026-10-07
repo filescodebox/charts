@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "filecodebox.frontend.fullname" . }}
+  name: {{ include "pigeonbox.frontend.fullname" . }}
   labels:
-    {{- include "filecodebox.frontend.labels" . | nindent 4 }}
+    {{- include "pigeonbox.frontend.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.frontend.service.type }}
   ports:
@@ -15,4 +15,4 @@ spec:
       nodePort: {{ .Values.frontend.service.nodePort }}
       {{- end }}
   selector:
-    {{- include "filecodebox.frontend.selectorLabels" . | nindent 4 }}
+    {{- include "pigeonbox.frontend.selectorLabels" . | nindent 4 }}

@@ -1,5 +1,5 @@
-# Default values for filecodebox.
-# 覆盖示例: helm install filecodebox ./charts/filecodebox --set secret.adminPassword=xxx
+# Default values for pigeonbox.
+# 覆盖示例: helm install pigeonbox ./charts/pigeonbox --set secret.adminPassword=xxx
 #
 # 架构(0.3+): 前后端分离两容器 ——
 #   frontend Deployment(nginx: 静态资源 + API 反代) → server Deployment(API/数据)
@@ -26,7 +26,7 @@ serverAdmin:
     #   nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8"
     annotations: {}
     hosts:
-      - host: admin.filecodebox.local
+      - host: admin.pigeonbox.local
         paths:
           - path: /
             pathType: Prefix
@@ -42,7 +42,7 @@ serverAdmin:
 containerPort: 12345
 
 image:
-  repository: ghcr.io/filescodebox/server
+  repository: ghcr.io/pigeonbox/server
   tag: ""            # 默认取 .Chart.AppVersion 并剥 v 前缀(ghcr tag 为 0.14.0 形态,无 v)
   pullPolicy: IfNotPresent
 
@@ -51,7 +51,7 @@ image:
 frontend:
   replicaCount: 1
   image:
-    repository: ghcr.io/filescodebox/frontend
+    repository: ghcr.io/pigeonbox/frontend
     tag: ""
     pullPolicy: IfNotPresent
   containerPort: 8080   # 镜像 nginx 以非 root(uid 101)监听 8080
@@ -142,14 +142,14 @@ ingress:
   #   nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
   annotations: {}
   hosts:
-    - host: filecodebox.local
+    - host: pigeonbox.local
       paths:
         - path: /
           pathType: Prefix
   tls: []
-  #  - secretName: filecodebox-tls
+  #  - secretName: pigeonbox-tls
   #    hosts:
-  #      - filecodebox.local
+  #      - pigeonbox.local
 
 # 数据持久化: SQLite 数据库 + 本地上传文件，对应容器内 /app/data。
 # 多副本/生产建议关闭本地存储依赖: database.driver 改 mysql/postgres、storage.type 改 s3/webdav，
@@ -168,12 +168,12 @@ persistence:
 config: {}
 #  server:
 #    mode: release
-#    base_url: https://filecodebox.example.com
+#    base_url: https://pigeonbox.example.com
 #  database:
 #    driver: mysql
 #    host: mysql.data.svc.cluster.local
 #    port: 3306
-#    db_name: filecodebox
+#    db_name: pigeonbox
 #  redis:
 #    host: redis.data.svc.cluster.local
 #  storage:
@@ -181,7 +181,7 @@ config: {}
 #    s3:
 #      endpoint: https://s3.example.com
 #      region: us-east-1
-#      bucket: filecodebox
+#      bucket: pigeonbox
 #  observability:
 #    tracing:
 #      enabled: true
@@ -189,7 +189,7 @@ config: {}
 #  security:
 #    cors:
 #      allow_origins:
-#        - https://filecodebox.example.com
+#        - https://pigeonbox.example.com
 
 # 敏感配置 → K8s Secret，以 FCB_* 环境变量注入(优先级高于配置文件)。
 secret:
@@ -252,11 +252,11 @@ redis:
 # P2P 联邦注册中心(可选组件,M2;默认关): 开启即部署单副本 p2p(节点注册/
 # 口令联邦路由,内存存储无状态),同时把后端 env 注入 FCB_FEDERATION_* 指向它。
 # 集群内 Service: <release>-p2p:12346;config 显式配置 federation 段时本开关让位。
-# 镜像 ghcr.io/filescodebox/p2p 为 public,离线集群需手动导入。
+# 镜像 ghcr.io/pigeonbox/p2p 为 public,离线集群需手动导入。
 p2p:
   enabled: false
   image:
-    repository: ghcr.io/filescodebox/p2p
+    repository: ghcr.io/pigeonbox/p2p
     tag: "0.4"
     pullPolicy: IfNotPresent
   # 本站对外地址(取件方直连下载用): 留空自动取 config.server.base_url;
@@ -287,8 +287,8 @@ mysql:
     tag: "8.4"
     pullPolicy: IfNotPresent
   auth:
-    username: filecodebox
-    database: filecodebox
+    username: pigeonbox
+    database: pigeonbox
     # 留空 = 安装时随机生成并写入 Secret,升级复用既有值(lookup);
     # Argo CD 等纯渲染工具不生效,需显式指定
     userPassword: ""
@@ -312,8 +312,8 @@ postgresql:
     tag: "17-alpine"
     pullPolicy: IfNotPresent
   auth:
-    username: filecodebox
-    database: filecodebox
+    username: pigeonbox
+    database: pigeonbox
     userPassword: ""
   persistence:
     storageClass: ""
@@ -345,10 +345,10 @@ s3:
     repository: amazon/aws-cli
     tag: "2.32.8"
   auth:
-    accessKey: filecodebox
+    accessKey: pigeonbox
     # 留空 = 安装时随机生成并写入 Secret,升级复用既有值(lookup)
     secretKey: ""
-  bucket: filecodebox
+  bucket: pigeonbox
   region: us-east-1
   # 建桶后自动写入的桶 CORS(幂等)。直传/直下等浏览器直连桶的场景必需;
   # 注意预签名 URL 由 storage.s3.endpoint 生成——内置实例端点在集群内,浏览器不可达,

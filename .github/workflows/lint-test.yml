@@ -49,7 +49,7 @@ jobs:
       - name: Render split-mode topology (PR)
         if: github.event_name != 'push'
         run: |
-          out=$(helm template fcb charts/filecodebox \
+          out=$(helm template fcb charts/pigeonbox \
             --set replicaCount=2 --set serverAdmin.ingress.enabled=true)
           echo "$out" | grep -q 'value: "public"'
           echo "$out" | grep -q 'value: "admin"'
@@ -72,13 +72,13 @@ jobs:
       - name: Wait for app images & preload into kind (push)
         if: github.event_name == 'push'
         run: |
-          tag=$(awk '/^appVersion:/{gsub(/"/,"",$2); print $2; exit}' charts/filecodebox/Chart.yaml)
+          tag=$(awk '/^appVersion:/{gsub(/"/,"",$2); print $2; exit}' charts/pigeonbox/Chart.yaml)
           tag=${tag#v}
           # 前后端分离落地(chart 带 frontend-deployment)后,两镜像同版本列车都要等
           images="server"
-          [ -f charts/filecodebox/templates/frontend-deployment.yaml ] && images="server frontend"
+          [ -f charts/pigeonbox/templates/frontend-deployment.yaml ] && images="server frontend"
           for image in $images; do
-            ref="ghcr.io/filescodebox/${image}:${tag}"
+            ref="ghcr.io/pigeonbox/${image}:${tag}"
             echo "等待 ${ref} 可拉取..."
             ok=0
             for i in $(seq 1 90); do
@@ -93,9 +93,9 @@ jobs:
       - name: Real install smoke (push)
         if: github.event_name == 'push'
         run: |
-          helm lint charts/filecodebox
-          helm upgrade --install fcb charts/filecodebox -n fcb-ci --create-namespace \
-            -f charts/filecodebox/ci/config-overlay-values.yaml --wait --timeout 5m
+          helm lint charts/pigeonbox
+          helm upgrade --install fcb charts/pigeonbox -n fcb-ci --create-namespace \
+            -f charts/pigeonbox/ci/config-overlay-values.yaml --wait --timeout 5m
           kubectl -n fcb-ci rollout status deploy -l app.kubernetes.io/instance=fcb --timeout=5m
           helm test fcb -n fcb-ci
 
@@ -105,8 +105,8 @@ jobs:
       - name: S3 (SeaweedFS) install smoke (push)
         if: github.event_name == 'push'
         run: |
-          helm upgrade --install fcb-s3 charts/filecodebox -n fcb-s3 --create-namespace \
-            -f charts/filecodebox/ci/config-overlay-values.yaml \
+          helm upgrade --install fcb-s3 charts/pigeonbox -n fcb-s3 --create-namespace \
+            -f charts/pigeonbox/ci/config-overlay-values.yaml \
             --set fullnameOverride=fcb-s3 --set s3.enabled=true --set config.storage=null \
             --wait --timeout 10m
           kubectl -n fcb-s3 rollout status statefulset/fcb-s3-s3 --timeout=5m

@@ -7,16 +7,16 @@ server Deployment 共享模板(多副本拆分,2026-10-06):
 拆分硬约束(见 values.yaml serverAdmin 注释): mysql/postgresql + Redis + 多节点可读的存储。
 入参 dict: root(chart 上下文) / plane(standalone|public|admin)
 */}}
-{{- define "filecodebox.server.deployment" -}}
+{{- define "pigeonbox.server.deployment" -}}
 {{- $ctx := .root -}}
 {{- $plane := .plane -}}
 {{- $split := ne $plane "standalone" -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "filecodebox.server.fullname" (dict "root" $ctx "plane" $plane) }}
+  name: {{ include "pigeonbox.server.fullname" (dict "root" $ctx "plane" $plane) }}
   labels:
-    {{- include "filecodebox.server.labels" (dict "root" $ctx "plane" $plane) | nindent 4 }}
+    {{- include "pigeonbox.server.labels" (dict "root" $ctx "plane" $plane) | nindent 4 }}
 spec:
   replicas: {{ if eq $plane "admin" }}1{{ else }}{{ $ctx.Values.replicaCount }}{{ end }}
   {{- if $ctx.Values.strategy.type }}
@@ -29,7 +29,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "filecodebox.server.selectorLabels" (dict "root" $ctx "plane" $plane) | nindent 6 }}
+      {{- include "pigeonbox.server.selectorLabels" (dict "root" $ctx "plane" $plane) | nindent 6 }}
   template:
     metadata:
       annotations:
@@ -43,7 +43,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        {{- include "filecodebox.server.selectorLabels" (dict "root" $ctx "plane" $plane) | nindent 8 }}
+        {{- include "pigeonbox.server.selectorLabels" (dict "root" $ctx "plane" $plane) | nindent 8 }}
         {{- with $ctx.Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -62,7 +62,7 @@ spec:
         - name: wait-redis
           image: {{ $ctx.Values.redis.image.repository }}:{{ $ctx.Values.redis.image.tag | default "7-alpine" }}
           imagePullPolicy: {{ $ctx.Values.redis.image.pullPolicy }}
-          command: ["sh", "-c", "until redis-cli -h {{ include "filecodebox.redis.fullname" $ctx }} ping 2>/dev/null | grep -q PONG; do echo waiting for redis; sleep 2; done"]
+          command: ["sh", "-c", "until redis-cli -h {{ include "pigeonbox.redis.fullname" $ctx }} ping 2>/dev/null | grep -q PONG; do echo waiting for redis; sleep 2; done"]
           resources:
             requests:
               cpu: 10m
@@ -79,12 +79,12 @@ spec:
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "filecodebox.s3.fullname" $ctx }}
+                  name: {{ include "pigeonbox.s3.fullname" $ctx }}
                   key: secret-key
             - name: AWS_DEFAULT_REGION
               value: {{ $ctx.Values.s3.region | default "us-east-1" }}
             - name: S3_ENDPOINT
-              value: http://{{ include "filecodebox.s3.fullname" $ctx }}:8333
+              value: http://{{ include "pigeonbox.s3.fullname" $ctx }}:8333
             {{- with $ctx.Values.s3.corsOrigins }}
             - name: S3_CORS_CONFIG
               value: {{ (dict "CORSRules" (list (dict "AllowedOrigins" . "AllowedMethods" (list "GET" "PUT" "POST" "HEAD") "AllowedHeaders" (list "*") "MaxAgeSeconds" 3600))) | toJson | quote }}
@@ -100,14 +100,14 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "filecodebox.serviceAccountName" $ctx }}
+      serviceAccountName: {{ include "pigeonbox.serviceAccountName" $ctx }}
       securityContext:
         {{- toYaml $ctx.Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ $ctx.Chart.Name }}
           securityContext:
             {{- toYaml $ctx.Values.securityContext | nindent 12 }}
-          image: {{ include "filecodebox.image" $ctx }}
+          image: {{ include "pigeonbox.image" $ctx }}
           imagePullPolicy: {{ $ctx.Values.image.pullPolicy }}
           ports:
             - name: http
@@ -115,7 +115,7 @@ spec:
               protocol: TCP
           envFrom:
             - secretRef:
-                name: {{ include "filecodebox.secretName" $ctx }}
+                name: {{ include "pigeonbox.secretName" $ctx }}
           {{- $wireRedis := and $ctx.Values.redis.enabled (not (get ($ctx.Values.config | default dict) "redis")) }}
           {{- $wireS3 := and $ctx.Values.s3.enabled (not (get ($ctx.Values.config | default dict) "storage")) }}
           {{- $wireFed := and $ctx.Values.p2p.enabled (not (get ($ctx.Values.config | default dict) "federation")) (eq $plane "standalone") }}
@@ -144,7 +144,7 @@ spec:
             {{- end }}
             {{- if $wireRedis }}
             - name: FCB_REDIS_HOST
-              value: {{ include "filecodebox.redis.fullname" $ctx }}
+              value: {{ include "pigeonbox.redis.fullname" $ctx }}
             - name: FCB_REDIS_PORT
               value: "6379"
             {{- if $ctx.Values.redis.auth.password }}
@@ -156,7 +156,7 @@ spec:
             - name: FCB_DATABASE_DRIVER
               value: mysql
             - name: FCB_DATABASE_HOST
-              value: {{ include "filecodebox.mysql.fullname" $ctx }}
+              value: {{ include "pigeonbox.mysql.fullname" $ctx }}
             - name: FCB_DATABASE_PORT
               value: "3306"
             - name: FCB_DATABASE_USER
@@ -166,14 +166,14 @@ spec:
             - name: FCB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "filecodebox.mysql.fullname" $ctx }}
+                  name: {{ include "pigeonbox.mysql.fullname" $ctx }}
                   key: user-password
             {{- end }}
             {{- if $ctx.Values.postgresql.enabled }}
             - name: FCB_DATABASE_DRIVER
               value: postgres
             - name: FCB_DATABASE_HOST
-              value: {{ include "filecodebox.postgresql.fullname" $ctx }}
+              value: {{ include "pigeonbox.postgresql.fullname" $ctx }}
             - name: FCB_DATABASE_PORT
               value: "5432"
             - name: FCB_DATABASE_USER
@@ -183,7 +183,7 @@ spec:
             - name: FCB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "filecodebox.postgresql.fullname" $ctx }}
+                  name: {{ include "pigeonbox.postgresql.fullname" $ctx }}
                   key: user-password
             {{- end }}
             {{- if $wireS3 }}
@@ -194,7 +194,7 @@ spec:
             - name: FCB_STORAGE_TYPE
               value: s3
             - name: FCB_STORAGE_S3_ENDPOINT
-              value: http://{{ include "filecodebox.s3.fullname" $ctx }}:8333
+              value: http://{{ include "pigeonbox.s3.fullname" $ctx }}:8333
             - name: FCB_STORAGE_S3_REGION
               value: {{ $ctx.Values.s3.region | default "us-east-1" }}
             - name: FCB_STORAGE_S3_BUCKET
@@ -204,7 +204,7 @@ spec:
             - name: FCB_STORAGE_S3_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "filecodebox.s3.fullname" $ctx }}
+                  name: {{ include "pigeonbox.s3.fullname" $ctx }}
                   key: secret-key
             - name: FCB_STORAGE_S3_USE_SSL
               value: "false"
@@ -216,7 +216,7 @@ spec:
             - name: FCB_FEDERATION_ENABLED
               value: "true"
             - name: FCB_FEDERATION_REGISTRY_URL
-              value: http://{{ include "filecodebox.p2p.fullname" $ctx }}:12346
+              value: http://{{ include "pigeonbox.p2p.fullname" $ctx }}:12346
             {{- if $fedPublicURL }}
             - name: FCB_FEDERATION_PUBLIC_URL
               value: {{ $fedPublicURL | quote }}
@@ -267,14 +267,14 @@ spec:
              federation key 等;多节点调度时该卷须 RWX,或改用 s3 后端 */}}
           {{- if $ctx.Values.persistence.enabled }}
           persistentVolumeClaim:
-            claimName: {{ default (include "filecodebox.fullname" $ctx) $ctx.Values.persistence.existingClaim }}
+            claimName: {{ default (include "pigeonbox.fullname" $ctx) $ctx.Values.persistence.existingClaim }}
           {{- else }}
           emptyDir: {}
           {{- end }}
         {{- if $ctx.Values.config }}
         - name: config
           configMap:
-            name: {{ include "filecodebox.fullname" $ctx }}-config
+            name: {{ include "pigeonbox.fullname" $ctx }}-config
         {{- end }}
         {{- with $ctx.Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}

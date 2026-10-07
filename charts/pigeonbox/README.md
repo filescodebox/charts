@@ -1,19 +1,19 @@
-# filecodebox
+# pigeonbox
 
-filescodebox（文件快递柜 — 匿名口令分享文本/文件）的 Helm Chart。
+pigeonbox（文件快递柜 — 匿名口令分享文本/文件）的 Helm Chart。
 
-架构（0.3+）：**前后端分离两容器** —— `frontend`（[ghcr.io/filescodebox/frontend](https://github.com/filescodebox/frontend)，nginx 静态资源 + API 反代）与 `server`（[ghcr.io/filescodebox/server](https://github.com/filescodebox/server)，API/数据，携带 PVC）。Ingress/NodePort 指向 frontend Service，API 请求由其反代后端；两镜像同一版本列车（`frontend.image.tag` 缺省同 AppVersion，由 server 仓 release 工作流同步发布）。server 镜像为纯后端（0.9.0 起不含前端静态资源）；docker compose 模板同为前后端分离编排；fnOS 应用为独立打包，不受影响。
+架构（0.3+）：**前后端分离两容器** —— `frontend`（[ghcr.io/pigeonbox/frontend](https://github.com/pigeonbox/frontend)，nginx 静态资源 + API 反代）与 `server`（[ghcr.io/pigeonbox/server](https://github.com/pigeonbox/server)，API/数据，携带 PVC）。Ingress/NodePort 指向 frontend Service，API 请求由其反代后端；两镜像同一版本列车（`frontend.image.tag` 缺省同 AppVersion，由 server 仓 release 工作流同步发布）。server 镜像为纯后端（0.9.0 起不含前端静态资源）；docker compose 模板同为前后端分离编排；fnOS 应用为独立打包，不受影响。
 
 内置数据面服务（0.4+）：`redis.enabled` 默认开启（单副本 + AOF + PVC，自动注入 `FCB_REDIS_HOST`，开箱即用）；`mysql.enabled` / `postgresql.enabled` / `s3.enabled` 默认关闭，开启即部署单副本 StatefulSet 并自动注入 `FCB_DATABASE_*` / `FCB_STORAGE_S3_*`（密码自动生成存 Secret，可用 `*.auth.*Password` 显式指定；内置 S3 桶自动创建并放行 `FCB_SSRF_ALLOW_PRIVATE`，需 server 镜像 ≥ 0.9.3）。生产/多副本建议关闭内置实例、`config.database` + `config.storage` 指向外部服务。
 
 > 内置对象存储为 **SeaweedFS**（Apache-2.0，S3 兼容，单进程 master+volume+filer+s3）。MinIO 自 2025-06 起停止发布社区容器镜像（Docker Hub / quay 均已拒绝匿名拉取），chart 无法再引用，故选型 SeaweedFS；对后端而言仅是标准 S3 端点，接入自建 MinIO / 云厂商 S3 亦只需 `config.storage` 或相应 env。
 
 ```bash
-helm repo add filescodebox https://filescodebox.github.io/charts
+helm repo add pigeonbox https://pigeonbox.github.io/charts
 helm repo update
-helm install filecodebox filescodebox/filecodebox --namespace filecodebox --create-namespace
+helm install pigeonbox pigeonbox/pigeonbox --namespace pigeonbox --create-namespace
 
-# 或 OCI 方式: helm install filecodebox oci://ghcr.io/filescodebox/charts/filecodebox
+# 或 OCI 方式: helm install pigeonbox oci://ghcr.io/pigeonbox/charts/pigeonbox
 ```
 
 ## 生产建议
@@ -34,7 +34,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 |---|---|---|
 | `replicaCount` | 副本数（SQLite 部署保持 1） | `1` |
 | `containerPort` | 容器内应用监听端口 | `12345` |
-| `image.repository` | 镜像 | `ghcr.io/filescodebox/server` |
+| `image.repository` | 镜像 | `ghcr.io/pigeonbox/server` |
 | `image.tag` | 镜像 tag | `.Chart.AppVersion`（如 `v0.14.0`） |
 | `image.pullPolicy` | 拉取策略 | `IfNotPresent` |
 | `imagePullSecrets` | 私仓凭证 | `[]` |
@@ -62,7 +62,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | 参数 | 说明 | 默认值 |
 |---|---|---|
 | `frontend.replicaCount` | 前端副本数（无状态，可独立扩缩） | `1` |
-| `frontend.image.repository` / `tag` / `pullPolicy` | 前端镜像；tag 缺省同 AppVersion（与 server 同版本列车） | `ghcr.io/filescodebox/frontend` / `""` / `IfNotPresent` |
+| `frontend.image.repository` / `tag` / `pullPolicy` | 前端镜像；tag 缺省同 AppVersion（与 server 同版本列车） | `ghcr.io/pigeonbox/frontend` / `""` / `IfNotPresent` |
 | `frontend.containerPort` | nginx 监听端口（镜像非 root 固定 8080） | `8080` |
 | `frontend.clientMaxBodySize` | nginx `client_max_body_size`（反代链路体积上限，须 ≥ `upload.upload_size`；镜像默认 20m，chart 放宽避免多文件 zip 下载/大请求体被 nginx 先拒） | `1024m` |
 | `frontend.securityContext` | 前端容器安全上下文（镜像 uid/gid 101） | 非 root、drop ALL |
@@ -79,7 +79,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | `redis.enabled` | 内置 Redis（取件码映射持久化；多副本共享/广播依赖）；单机关闭后为内存模式（重启丢映射，core v0.14.0+）；config 显式配置 `redis` 段时自动让位 | `true` |
 | `redis.image.*` / `auth.password` / `persistence.*` / `resources` | 镜像 `redis:7-alpine`；密码留空=无密码(仅集群内)；AOF 持久化 1Gi | 见 values.yaml |
 | `mysql.enabled` / `postgresql.enabled` | 内置 MySQL 8.4 / PostgreSQL 17 单副本 StatefulSet（默认关）；开启即自动注入 `FCB_DATABASE_*` | `false` |
-| `mysql.auth.*` / `postgresql.auth.*` | `username`(默认 filecodebox)、`database`(默认 filecodebox)、密码留空=随机生成并跨升级复用 | 见 values.yaml |
+| `mysql.auth.*` / `postgresql.auth.*` | `username`(默认 pigeonbox)、`database`(默认 pigeonbox)、密码留空=随机生成并跨升级复用 | 见 values.yaml |
 | `mysql.persistence.size` / `postgresql.persistence.size` | 数据卷 | `10Gi` |
 | `s3.enabled` | 内置 SeaweedFS（S3 兼容对象存储，单进程；自动建桶、注入 `FCB_STORAGE_*` 与 `FCB_SSRF_ALLOW_PRIVATE`；需 server ≥ 0.9.3） | `false` |
 | `s3.image.*` / `initImage.*` / `auth.*` / `bucket` / `region` / `persistence.size` | SeaweedFS 镜像、建桶用 aws-cli init 容器、凭据（secretKey 留空随机生成）、桶名与 region | 见 values.yaml |
@@ -92,7 +92,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 | 参数 | 说明 | 默认值 |
 |---|---|---|
 | `p2p.enabled` | 部署联邦注册中心单副本（节点注册/口令联邦路由，内存存储无状态）并自动注入 `FCB_FEDERATION_*`；`config.federation` 显式配置时让位。**需 server 镜像 ≥ 0.10.0**（federation 域服务在 core v0.8.0）。默认镜像 tag `0.4` 起为传输协议 v2——**直传双端（desktop/p2pc）须同版升级**，旧版客户端互传首帧失败 | `false` |
-| `p2p.image.*` | ghcr.io/filescodebox/p2p（public，离线集群需导入） | `0.3` |
+| `p2p.image.*` | ghcr.io/pigeonbox/p2p（public，离线集群需导入） | `0.3` |
 | `p2p.publicURL` | 本站对外地址（取件方直连下载用）；留空自动取 `config.server.base_url` | `""` |
 | `p2p.adminPassword` | p2p 管理 API 口令；留空 = 管理 API 禁用 | `""` |
 | `p2p.relay.enabled` | 直传加密中继兜底（1.3.7+，`FCB_P2P_RELAY_ENABLED`；直连失败时经中继转发） | `false` |
@@ -112,7 +112,7 @@ helm install filecodebox filescodebox/filecodebox --namespace filecodebox --crea
 
 | 参数 | 说明 | 默认值 |
 |---|---|---|
-| `config` | server 配置（渲染为 ConfigMap，subPath 覆盖 `/app/config/config.yaml`）。**注意是整体替换镜像内置配置文件**，请对照 [config.example.yaml](https://github.com/filescodebox/server/blob/main/configs/config.example.yaml) 提供完整结构；留空则使用镜像内置配置 | `{}` |
+| `config` | server 配置（渲染为 ConfigMap，subPath 覆盖 `/app/config/config.yaml`）。**注意是整体替换镜像内置配置文件**，请对照 [config.example.yaml](https://github.com/pigeonbox/server/blob/main/configs/config.example.yaml) 提供完整结构；留空则使用镜像内置配置 | `{}` |
 | `secret.create` / `existingSecret` | 是否创建 Secret / 引用已有 Secret | `true` / `""` |
 | `secret.jwtSecret` | JWT 密钥；留空随机生成并跨升级复用（lookup，Argo CD 下需显式指定） | `""` |
 | `secret.adminPassword` | 管理密码（`FCB_ADMIN_PASSWORD`）；留空自动随机生成并跨升级复用 | `""` |
@@ -135,13 +135,13 @@ config:
     driver: mysql
     host: mysql.data.svc.cluster.local
     port: 3306
-    db_name: filecodebox
+    db_name: pigeonbox
   storage:
     type: s3
     s3:
       endpoint: https://s3.example.com
       region: us-east-1
-      bucket: filecodebox
+      bucket: pigeonbox
   security:
     cors:
       allow_origins:
@@ -150,7 +150,7 @@ secret:
   adminPassword: change-me-please
   production: true
   database:
-    user: filecodebox
+    user: pigeonbox
     password: db-pass
   extra:
     FCB_STORAGE_S3_ACCESS_KEY: ak
@@ -183,7 +183,7 @@ ingress:
 | server-admin | `FCB_DEPLOY_MODE=admin` | 1 | 管理面路由（admin/MCP/setup）、后台任务、DB 迁移、配置唯一写者（变更 Redis 广播同步到 public 副本） |
 | admin-ui | —（可选） | 1 | admin 控制台 SPA（nginx → server-admin），随 `serverAdmin.ingress.enabled` 渲染 |
 
-命名规则一句话：主 server 沿用历史全名 `<release>-filecodebox`（升级兼容，frontend 反代写死该名），拆分新增资源在 release 名下用短后缀——`<release>-admin`、`<release>-admin-ui`。
+命名规则一句话：主 server 沿用历史全名 `<release>-pigeonbox`（升级兼容，frontend 反代写死该名），拆分新增资源在 release 名下用短后缀——`<release>-admin`、`<release>-admin-ui`。
 
 要点：
 

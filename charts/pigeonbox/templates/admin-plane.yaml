@@ -5,16 +5,16 @@
    公网入口(ingress.yaml)永远只指 public/frontend,admin 面不对外。 */}}
 {{- $split := gt (int .Values.replicaCount) 1 }}
 {{- if $split }}
-{{- $adminName := include "filecodebox.server.fullname" (dict "root" . "plane" "admin") }}
+{{- $adminName := include "pigeonbox.server.fullname" (dict "root" . "plane" "admin") }}
 ---
-{{ include "filecodebox.server.deployment" (dict "root" . "plane" "admin") }}
+{{ include "pigeonbox.server.deployment" (dict "root" . "plane" "admin") }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ $adminName }}
   labels:
-    {{- include "filecodebox.server.labels" (dict "root" . "plane" "admin") | nindent 4 }}
+    {{- include "pigeonbox.server.labels" (dict "root" . "plane" "admin") | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
@@ -23,7 +23,7 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "filecodebox.server.selectorLabels" (dict "root" . "plane" "admin") | nindent 4 }}
+    {{- include "pigeonbox.server.selectorLabels" (dict "root" . "plane" "admin") | nindent 4 }}
 {{- if .Values.serverAdmin.ingress.enabled }}
 {{- $adminFrontendName := printf "%s-admin-ui" .Release.Name | trunc 63 | trimSuffix "-" }}
 ---
@@ -33,8 +33,8 @@ kind: Deployment
 metadata:
   name: {{ $adminFrontendName }}
   labels:
-    helm.sh/chart: {{ include "filecodebox.chart" . }}
-    app.kubernetes.io/name: {{ include "filecodebox.name" . }}-admin-ui
+    helm.sh/chart: {{ include "pigeonbox.chart" . }}
+    app.kubernetes.io/name: {{ include "pigeonbox.name" . }}-admin-ui
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: admin-frontend
     app.kubernetes.io/managed-by: {{ .Release.Service }}
@@ -44,12 +44,12 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "filecodebox.name" . }}-admin-ui
+      app.kubernetes.io/name: {{ include "pigeonbox.name" . }}-admin-ui
       app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ include "filecodebox.name" . }}-admin-ui
+        app.kubernetes.io/name: {{ include "pigeonbox.name" . }}-admin-ui
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: admin-frontend
     spec:
@@ -64,7 +64,7 @@ spec:
         - name: frontend
           securityContext:
             {{- toYaml .Values.frontend.securityContext | nindent 12 }}
-          image: {{ include "filecodebox.frontend.image" . }}
+          image: {{ include "pigeonbox.frontend.image" . }}
           imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
           # 反代上游 = admin server Service(镜像 envsubst 渲染进 nginx 配置)
           env:
@@ -102,7 +102,7 @@ kind: Service
 metadata:
   name: {{ $adminFrontendName }}
   labels:
-    app.kubernetes.io/name: {{ include "filecodebox.name" . }}-admin-ui
+    app.kubernetes.io/name: {{ include "pigeonbox.name" . }}-admin-ui
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: admin-frontend
 spec:
@@ -113,7 +113,7 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app.kubernetes.io/name: {{ include "filecodebox.name" . }}-admin-ui
+    app.kubernetes.io/name: {{ include "pigeonbox.name" . }}-admin-ui
     app.kubernetes.io/instance: {{ .Release.Name }}
 ---
 {{/* admin Ingress: 建议注解挂 IP 白名单/内网认证(见 values.yaml serverAdmin 示例) */}}
@@ -122,7 +122,7 @@ kind: Ingress
 metadata:
   name: {{ $adminFrontendName }}
   labels:
-    helm.sh/chart: {{ include "filecodebox.chart" . }}
+    helm.sh/chart: {{ include "pigeonbox.chart" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
   {{- with .Values.serverAdmin.ingress.annotations }}

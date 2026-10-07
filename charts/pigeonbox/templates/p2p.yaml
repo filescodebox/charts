@@ -7,18 +7,18 @@ registry 重启不丢联邦(租约 TTL 内自动补),故不需要 PVC。
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "filecodebox.p2p.fullname" . }}
+  name: {{ include "pigeonbox.p2p.fullname" . }}
   labels:
-    {{- include "filecodebox.data.labels" (dict "component" "p2p" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+    {{- include "pigeonbox.data.labels" (dict "component" "p2p" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "filecodebox.data.selectorLabels" (dict "component" "p2p" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 6 }}
+      {{- include "pigeonbox.data.selectorLabels" (dict "component" "p2p" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "filecodebox.data.selectorLabels" (dict "component" "p2p" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 8 }}
+        {{- include "pigeonbox.data.selectorLabels" (dict "component" "p2p" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -98,9 +98,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "filecodebox.p2p.fullname" . }}
+  name: {{ include "pigeonbox.p2p.fullname" . }}
   labels:
-    {{- include "filecodebox.data.labels" (dict "component" "p2p" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+    {{- include "pigeonbox.data.labels" (dict "component" "p2p" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
@@ -115,5 +115,5 @@ spec:
       name: relay
     {{- end }}
   selector:
-    {{- include "filecodebox.data.selectorLabels" (dict "component" "p2p" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
+    {{- include "pigeonbox.data.selectorLabels" (dict "component" "p2p" "Release" .Release "Values" .Values "Chart" .Chart "Template" .Template) | nindent 4 }}
 {{- end }}

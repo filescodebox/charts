@@ -2,9 +2,9 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "filecodebox.fullname" . }}
+  name: {{ include "pigeonbox.fullname" . }}
   labels:
-    {{- include "filecodebox.labels" . | nindent 4 }}
+    {{- include "pigeonbox.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -28,7 +28,7 @@ spec:
             backend:
               service:
                 # 流量统一进 frontend(nginx)容器, API 由其反代到后端 Service
-                name: {{ include "filecodebox.frontend.fullname" $ }}
+                name: {{ include "pigeonbox.frontend.fullname" $ }}
                 port:
                   name: http
           {{- end }}

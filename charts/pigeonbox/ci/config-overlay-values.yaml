@@ -12,7 +12,7 @@ config:
     write_timeout: 30
   database:
     driver: sqlite
-    db_name: "./data/filecodebox.db"
+    db_name: "./data/pigeonbox.db"
   log:
     level: info
     max_size: 100
@@ -20,7 +20,7 @@ config:
     max_age: 7
     compress: true
   app:
-    name: FilesCodeBox
+    name: PigeonBox
     datapath: "./data"
     production: true
   upload:
