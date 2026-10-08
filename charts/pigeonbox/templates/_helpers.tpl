@@ -122,7 +122,7 @@ Secret 名: 优先 existingSecret
 {{- else }}
 {{- $existing := lookup "v1" "Secret" .Release.Namespace (include "pigeonbox.secretName" .) }}
 {{- if and $existing $existing.data }}
-{{- index $existing.data "FCB_JWT_SECRET" | b64dec }}
+{{- index $existing.data "PB_JWT_SECRET" | b64dec }}
 {{- else }}
 {{- randAlphaNum 48 }}
 {{- end }}
@@ -140,7 +140,7 @@ Argo CD 等纯渲染工具请显式设置 secret.adminPassword。
 {{- else }}
 {{- $existing := lookup "v1" "Secret" .Release.Namespace (include "pigeonbox.secretName" .) }}
 {{- if and $existing $existing.data }}
-{{- index $existing.data "FCB_ADMIN_PASSWORD" | b64dec }}
+{{- index $existing.data "PB_ADMIN_PASSWORD" | b64dec }}
 {{- else }}
 {{- randAlphaNum 24 }}
 {{- end }}

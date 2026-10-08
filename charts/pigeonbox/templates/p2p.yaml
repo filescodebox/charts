@@ -40,15 +40,15 @@ spec:
           imagePullPolicy: {{ .Values.p2p.image.pullPolicy }}
           {{- if .Values.p2p.adminPassword }}
           env:
-            - name: FCB_P2P_ADMIN_PASSWORD
+            - name: PB_P2P_ADMIN_PASSWORD
               value: {{ .Values.p2p.adminPassword | quote }}
           {{- end }}
           {{- if .Values.p2p.relay.enabled }}
           env:
-            - name: FCB_P2P_RELAY_ENABLED
+            - name: PB_P2P_RELAY_ENABLED
               value: "true"
             {{- if .Values.p2p.relay.mbps }}
-            - name: FCB_P2P_RELAY_MBPS
+            - name: PB_P2P_RELAY_MBPS
               value: {{ .Values.p2p.relay.mbps | quote }}
             {{- end }}
           {{- end }}

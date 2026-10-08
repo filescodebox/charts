@@ -9,8 +9,8 @@
 
 # ⚠️ 多副本(replicaCount>1)硬约束: 外部或内置 MySQL/Postgres + Redis(广播依赖)
 #    + 多节点可读的存储(S3 后端或 RWX 卷);SQLite 只支持单副本请保持 1。
-#    拆分后自动渲染: server(FCB_DEPLOY_MODE=public,可扩副本) + server-admin
-#    (FCB_DEPLOY_MODE=admin,全局 1 实例: 管理路由/后台任务/DB 迁移/配置唯一写者)。
+#    拆分后自动渲染: server(PB_DEPLOY_MODE=public,可扩副本) + server-admin
+#    (PB_DEPLOY_MODE=admin,全局 1 实例: 管理路由/后台任务/DB 迁移/配置唯一写者)。
 replicaCount: 1
 
 # ── admin 管理面(仅 replicaCount>1 拆分模式生效)─────────────────────────
@@ -38,7 +38,7 @@ serverAdmin:
     #    cpu: 50m
     #    memory: 64Mi
 
-# 容器内应用监听端口(镜像默认 12345，可用 env FCB_SERVER_PORT 覆盖后同步修改)
+# 容器内应用监听端口(镜像默认 12345，可用 env PB_SERVER_PORT 覆盖后同步修改)
 containerPort: 12345
 
 image:
@@ -191,22 +191,22 @@ config: {}
 #      allow_origins:
 #        - https://pigeonbox.example.com
 
-# 敏感配置 → K8s Secret，以 FCB_* 环境变量注入(优先级高于配置文件)。
+# 敏感配置 → K8s Secret，以 PB_* 环境变量注入(优先级高于配置文件)。
 secret:
   create: true
-  # 已有 Secret(键为 FCB_* 形式)时不再创建；Deployment 改为引用它
+  # 已有 Secret(键为 PB_* 形式)时不再创建；Deployment 改为引用它
   existingSecret: ""
   # 留空 = 安装时随机生成并写入 Secret，升级时复用既有值(基于 lookup，Argo CD 等纯渲染工具不生效，需显式指定)
   jwtSecret: ""
-  # 留空 = 安装时随机生成并写入 Secret(取回: kubectl get secret <名称> -o jsonpath="{.data.FCB_ADMIN_PASSWORD}" | base64 -d)；升级复用既有值
+  # 留空 = 安装时随机生成并写入 Secret(取回: kubectl get secret <名称> -o jsonpath="{.data.PB_ADMIN_PASSWORD}" | base64 -d)；升级复用既有值
   adminPassword: ""
-  production: false           # FCB_PRODUCTION=1: 强制校验 secret，生产建议 true
-  serverMode: "release"       # FCB_SERVER_MODE: release | debug | test
-  database: {}                # 附加 FCB_DATABASE_* 键值对，如 {HOST: mysql, PASSWORD: xxx}
-  redis: {}                   # 附加 FCB_REDIS_* 键值对，如 {PASSWORD: xxx}
-  extra: {}                   # 其他任意 FCB_* 键值对(键名原样注入)
+  production: false           # PB_PRODUCTION=1: 强制校验 secret，生产建议 true
+  serverMode: "release"       # PB_SERVER_MODE: release | debug | test
+  database: {}                # 附加 PB_DATABASE_* 键值对，如 {HOST: mysql, PASSWORD: xxx}
+  redis: {}                   # 附加 PB_REDIS_* 键值对，如 {PASSWORD: xxx}
+  extra: {}                   # 其他任意 PB_* 键值对(键名原样注入)
 
-# 可信代理网段(CIDR 列表)，以 FCB_TRUSTED_PROXIES(逗号分隔)注入。
+# 可信代理网段(CIDR 列表)，以 PB_TRUSTED_PROXIES(逗号分隔)注入。
 # 反代/Ingress 部署必填：仅当直连对端在网段内才采信 X-Forwarded-For，
 # 否则限流/失败锁定会把代理地址当成所有用户的来源而误伤。
 # 前后端分离架构下后端直连对端 = frontend nginx Pod，XFF 链 =
@@ -232,7 +232,7 @@ redis:
     tag: "7-alpine"
     pullPolicy: IfNotPresent
   auth:
-    # 留空 = 无密码(仅集群内网可达);设置后开启 requirepass 并注入 FCB_REDIS_PASSWORD
+    # 留空 = 无密码(仅集群内网可达);设置后开启 requirepass 并注入 PB_REDIS_PASSWORD
     password: ""
   persistence:
     enabled: true
@@ -250,7 +250,7 @@ redis:
       memory: 256Mi
 
 # P2P 联邦注册中心(可选组件,M2;默认关): 开启即部署单副本 p2p(节点注册/
-# 口令联邦路由,内存存储无状态),同时把后端 env 注入 FCB_FEDERATION_* 指向它。
+# 口令联邦路由,内存存储无状态),同时把后端 env 注入 PB_FEDERATION_* 指向它。
 # 集群内 Service: <release>-p2p:12346;config 显式配置 federation 段时本开关让位。
 # 镜像 ghcr.io/pigeonbox/p2p 为 public,离线集群需手动导入。
 p2p:
@@ -277,7 +277,7 @@ p2p:
       memory: 256Mi
 
 # 内置 MySQL 8.4(默认关): 开启即部署单副本 StatefulSet 并自动注入
-# FCB_DATABASE_DRIVER/HOST/PORT/USER/PASSWORD/DB_NAME(env 优先级高于 config)。
+# PB_DATABASE_DRIVER/HOST/PORT/USER/PASSWORD/DB_NAME(env 优先级高于 config)。
 # 生产建议外部 MySQL + config/secret 显式配置,保持本开关 false。
 # 离线集群启用前先导入 mysql:8.4 镜像到被调度节点。
 mysql:
@@ -327,13 +327,13 @@ postgresql:
       memory: 1Gi
 
 # 内置 S3 对象存储(默认关): SeaweedFS 单进程(master+volume+filer+s3),开启即部署
-# 单副本 StatefulSet + 自动建桶,并自动注入 FCB_STORAGE_TYPE/FCB_STORAGE_S3_*
-# 与 FCB_SSRF_ALLOW_PRIVATE(集群内端点属私网,须放开 core 的 SSRF 防护;
+# 单副本 StatefulSet + 自动建桶,并自动注入 PB_STORAGE_TYPE/PB_STORAGE_S3_*
+# 与 PB_SSRF_ALLOW_PRIVATE(集群内端点属私网,须放开 core 的 SSRF 防护;
 # env 优先级高于 config)。适合无外部对象存储的单集群生产形态;已有 S3/WebDAV 时保持 false。
 # 选型说明: MinIO 2025-06 起停止发布社区容器镜像(docker.io/quay.io 均拒绝匿名拉取),
 # 故改用仍持续发布官方多架构镜像的 SeaweedFS(Apache-2.0)。
 # 离线集群启用前先导入 seaweedfs 与 aws-cli 镜像到被调度节点。
-# ⚠️ 需要 server 镜像 >= 0.9.3(此前 core 未映射 FCB_STORAGE_S3_* env)。
+# ⚠️ 需要 server 镜像 >= 0.9.3(此前 core 未映射 PB_STORAGE_S3_* env)。
 s3:
   enabled: false
   image:

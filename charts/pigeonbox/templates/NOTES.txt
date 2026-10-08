@@ -25,7 +25,7 @@
        helm upgrade --set secret.adminPassword=<强密码> --set secret.production=true
 {{- else }}
    管理密码已通过 Secret {{ include "pigeonbox.secretName" . }} 注入{{- if not .Values.secret.adminPassword }}(随机生成,取回:
-       kubectl get secret {{ include "pigeonbox.secretName" . }} --namespace {{ .Release.Namespace }} -o jsonpath='{.data.FCB_ADMIN_PASSWORD}' | base64 -d){{- end }}。
+       kubectl get secret {{ include "pigeonbox.secretName" . }} --namespace {{ .Release.Namespace }} -o jsonpath='{.data.PB_ADMIN_PASSWORD}' | base64 -d){{- end }}。
 {{- end }}
 
 3. 数据目录: {{ .Values.persistence.mountPath }}
@@ -37,18 +37,18 @@
 
 4. 数据面服务:
 {{- if .Values.redis.enabled }}
-   Redis: 内置 {{ include "pigeonbox.redis.fullname" . }} (已自动注入 FCB_REDIS_HOST;{{ if .Values.redis.auth.password }}已启用密码{{ else }}无密码,仅限集群内{{ end }}){{ if get (.Values.config | default dict) "redis" }} ⚠️ config.redis 已显式配置,内置实例未接线{{ end }}
+   Redis: 内置 {{ include "pigeonbox.redis.fullname" . }} (已自动注入 PB_REDIS_HOST;{{ if .Values.redis.auth.password }}已启用密码{{ else }}无密码,仅限集群内{{ end }}){{ if get (.Values.config | default dict) "redis" }} ⚠️ config.redis 已显式配置,内置实例未接线{{ end }}
 {{- else }}
    Redis: 未启用 —— 单机内存模式(core v0.14.0+):匿名取件/直传全功能可用,
    重启丢失未取件映射;多副本部署或需重启不丢请设 config.redis.host 指向外部 Redis。
 {{- end }}
 {{- if .Values.s3.enabled }}
-   对象存储: 内置 SeaweedFS(S3 兼容) {{ include "pigeonbox.s3.fullname" . }} (桶 {{ .Values.s3.bucket }} 已自动创建并注入 FCB_STORAGE_*; 凭据在 Secret {{ include "pigeonbox.s3.fullname" . }}{{ if .Values.s3.corsOrigins }}; 桶 CORS 已写入{{ end }}){{ if get (.Values.config | default dict) "storage" }} ⚠️ config.storage 已显式配置,内置实例未接线{{ end }}
+   对象存储: 内置 SeaweedFS(S3 兼容) {{ include "pigeonbox.s3.fullname" . }} (桶 {{ .Values.s3.bucket }} 已自动创建并注入 PB_STORAGE_*; 凭据在 Secret {{ include "pigeonbox.s3.fullname" . }}{{ if .Values.s3.corsOrigins }}; 桶 CORS 已写入{{ end }}){{ if get (.Values.config | default dict) "storage" }} ⚠️ config.storage 已显式配置,内置实例未接线{{ end }}
 {{- end }}
 {{- if .Values.mysql.enabled }}
-   MySQL: 内置 {{ include "pigeonbox.mysql.fullname" . }} (自动注入 FCB_DATABASE_*, 密码在 Secret {{ include "pigeonbox.mysql.fullname" . }})
+   MySQL: 内置 {{ include "pigeonbox.mysql.fullname" . }} (自动注入 PB_DATABASE_*, 密码在 Secret {{ include "pigeonbox.mysql.fullname" . }})
 {{- else if .Values.postgresql.enabled }}
-   PostgreSQL: 内置 {{ include "pigeonbox.postgresql.fullname" . }} (自动注入 FCB_DATABASE_*, 密码在 Secret {{ include "pigeonbox.postgresql.fullname" . }})
+   PostgreSQL: 内置 {{ include "pigeonbox.postgresql.fullname" . }} (自动注入 PB_DATABASE_*, 密码在 Secret {{ include "pigeonbox.postgresql.fullname" . }})
 {{- else }}
    数据库: SQLite(/app/data); 多副本/生产可用 mysql.enabled / postgresql.enabled 开内置实例,
    或 config.database + secret.database 指向外部 MySQL/PostgreSQL。

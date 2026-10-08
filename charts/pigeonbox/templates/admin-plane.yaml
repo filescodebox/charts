@@ -1,5 +1,5 @@
 {{/* 多副本拆分面(admin): 仅 replicaCount>1 时渲染。
-   admin server(管理面单实例,FCB_DEPLOY_MODE=admin) + ClusterIP Service;
+   admin server(管理面单实例,PB_DEPLOY_MODE=admin) + ClusterIP Service;
    serverAdmin.ingress.enabled 时附一个反代到 admin server 的 frontend 副本
    (server 镜像为纯后端,管理控制台 SPA 需 nginx 静态层)与 Ingress。
    公网入口(ingress.yaml)永远只指 public/frontend,admin 面不对外。 */}}

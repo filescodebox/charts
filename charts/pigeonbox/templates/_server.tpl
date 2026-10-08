@@ -1,6 +1,6 @@
 {{/*
 server Deployment 共享模板(多副本拆分,2026-10-06):
-同一镜像按 FCB_DEPLOY_MODE 渲染三种平面——
+同一镜像按 PB_DEPLOY_MODE 渲染三种平面——
   standalone(默认): 全功能单副本,资源名/标签与历史版本一致(升级零迁移);
   public(可 N 副本): 公开面路由,只读配置+订阅管理端变更广播,不跑迁移/后台任务;
   admin(全局 1 副本): 管理面路由 + 迁移 + 后台任务 + 配置唯一写者(变更 Redis 广播)。
@@ -48,7 +48,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- /* 数据面接线: 内置 redis/mysql/postgresql/s3(SeaweedFS) → FCB_* env(env 优先级高于 config)。
+      {{- /* 数据面接线: 内置 redis/mysql/postgresql/s3(SeaweedFS) → PB_* env(env 优先级高于 config)。
          让位判断用取值判空而非 hasKey: config.<段>=null(helm --set xxx=null 删除语义)也算未显式配置 */}}
       {{- $wireRedis := and $ctx.Values.redis.enabled (not (get ($ctx.Values.config | default dict) "redis")) }}
       {{- $wireS3 := and $ctx.Values.s3.enabled (not (get ($ctx.Values.config | default dict) "storage")) }}
@@ -130,57 +130,57 @@ spec:
           env:
             {{- /* 多副本拆分: 显式声明运行平面;限流计数走 Redis 多实例共享 */}}
             {{- if $split }}
-            - name: FCB_DEPLOY_MODE
+            - name: PB_DEPLOY_MODE
               value: {{ $plane | quote }}
-            - name: FCB_RATE_LIMIT_USE_REDIS
+            - name: PB_RATE_LIMIT_USE_REDIS
               value: "true"
             {{- end }}
             {{- with $ctx.Values.trustedProxies }}
-            - name: FCB_TRUSTED_PROXIES
+            - name: PB_TRUSTED_PROXIES
               value: {{ join "," . | quote }}
             {{- end }}
             {{- with $ctx.Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
             {{- if $wireRedis }}
-            - name: FCB_REDIS_HOST
+            - name: PB_REDIS_HOST
               value: {{ include "pigeonbox.redis.fullname" $ctx }}
-            - name: FCB_REDIS_PORT
+            - name: PB_REDIS_PORT
               value: "6379"
             {{- if $ctx.Values.redis.auth.password }}
-            - name: FCB_REDIS_PASSWORD
+            - name: PB_REDIS_PASSWORD
               value: {{ $ctx.Values.redis.auth.password | quote }}
             {{- end }}
             {{- end }}
             {{- if $ctx.Values.mysql.enabled }}
-            - name: FCB_DATABASE_DRIVER
+            - name: PB_DATABASE_DRIVER
               value: mysql
-            - name: FCB_DATABASE_HOST
+            - name: PB_DATABASE_HOST
               value: {{ include "pigeonbox.mysql.fullname" $ctx }}
-            - name: FCB_DATABASE_PORT
+            - name: PB_DATABASE_PORT
               value: "3306"
-            - name: FCB_DATABASE_USER
+            - name: PB_DATABASE_USER
               value: {{ $ctx.Values.mysql.auth.username | quote }}
-            - name: FCB_DATABASE_DB_NAME
+            - name: PB_DATABASE_DB_NAME
               value: {{ $ctx.Values.mysql.auth.database | quote }}
-            - name: FCB_DATABASE_PASSWORD
+            - name: PB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "pigeonbox.mysql.fullname" $ctx }}
                   key: user-password
             {{- end }}
             {{- if $ctx.Values.postgresql.enabled }}
-            - name: FCB_DATABASE_DRIVER
+            - name: PB_DATABASE_DRIVER
               value: postgres
-            - name: FCB_DATABASE_HOST
+            - name: PB_DATABASE_HOST
               value: {{ include "pigeonbox.postgresql.fullname" $ctx }}
-            - name: FCB_DATABASE_PORT
+            - name: PB_DATABASE_PORT
               value: "5432"
-            - name: FCB_DATABASE_USER
+            - name: PB_DATABASE_USER
               value: {{ $ctx.Values.postgresql.auth.username | quote }}
-            - name: FCB_DATABASE_DB_NAME
+            - name: PB_DATABASE_DB_NAME
               value: {{ $ctx.Values.postgresql.auth.database | quote }}
-            - name: FCB_DATABASE_PASSWORD
+            - name: PB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "pigeonbox.postgresql.fullname" $ctx }}
@@ -189,36 +189,36 @@ spec:
             {{- if $wireS3 }}
             {{- /* storage.s3 env 映射需 core v0.7.7+(server 镜像 >= 0.9.3);
                集群内端点是私网地址,须放开 core 的 SSRF 端点防护才可用 */}}
-            - name: FCB_SSRF_ALLOW_PRIVATE
+            - name: PB_SSRF_ALLOW_PRIVATE
               value: "true"
-            - name: FCB_STORAGE_TYPE
+            - name: PB_STORAGE_TYPE
               value: s3
-            - name: FCB_STORAGE_S3_ENDPOINT
+            - name: PB_STORAGE_S3_ENDPOINT
               value: http://{{ include "pigeonbox.s3.fullname" $ctx }}:8333
-            - name: FCB_STORAGE_S3_REGION
+            - name: PB_STORAGE_S3_REGION
               value: {{ $ctx.Values.s3.region | default "us-east-1" }}
-            - name: FCB_STORAGE_S3_BUCKET
+            - name: PB_STORAGE_S3_BUCKET
               value: {{ $ctx.Values.s3.bucket | quote }}
-            - name: FCB_STORAGE_S3_ACCESS_KEY
+            - name: PB_STORAGE_S3_ACCESS_KEY
               value: {{ $ctx.Values.s3.auth.accessKey | quote }}
-            - name: FCB_STORAGE_S3_SECRET_KEY
+            - name: PB_STORAGE_S3_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ include "pigeonbox.s3.fullname" $ctx }}
                   key: secret-key
-            - name: FCB_STORAGE_S3_USE_SSL
+            - name: PB_STORAGE_S3_USE_SSL
               value: "false"
-            - name: FCB_STORAGE_S3_PATH_STYLE
+            - name: PB_STORAGE_S3_PATH_STYLE
               value: "true"
             {{- end }}
             {{- if $wireFed }}
             {{- /* P2P 联邦(M2): 节点身份密钥在 data 卷(persistence),重启不变 */}}
-            - name: FCB_FEDERATION_ENABLED
+            - name: PB_FEDERATION_ENABLED
               value: "true"
-            - name: FCB_FEDERATION_REGISTRY_URL
+            - name: PB_FEDERATION_REGISTRY_URL
               value: http://{{ include "pigeonbox.p2p.fullname" $ctx }}:12346
             {{- if $fedPublicURL }}
-            - name: FCB_FEDERATION_PUBLIC_URL
+            - name: PB_FEDERATION_PUBLIC_URL
               value: {{ $fedPublicURL | quote }}
             {{- end }}
             {{- end }}

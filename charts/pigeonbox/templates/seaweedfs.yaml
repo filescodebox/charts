@@ -3,7 +3,7 @@
    选型背景: MinIO 2025-06 起停止发布社区容器镜像(docker.io/quay.io 均已拒绝匿名拉取,
    上游 README 只剩"自行构建"指引), chart 无法再引用官方 MinIO 镜像;
    SeaweedFS(Apache-2.0) 为仍持续发布官方多架构镜像的 S3 兼容实现(ghcr.io/chrislusf/seaweedfs),
-   与 core 的 OpenDAL s3 驱动(path_style)兼容, 对后端仅是一组 FCB_STORAGE_S3_* env。 */}}
+   与 core 的 OpenDAL s3 驱动(path_style)兼容, 对后端仅是一组 PB_STORAGE_S3_* env。 */}}
 {{- $secretName := include "pigeonbox.s3.fullname" . }}
 {{- $accessKey := .Values.s3.auth.accessKey }}
 {{- $secretKey := include "pigeonbox.stablePassword" (dict "secretName" $secretName "key" "secret-key" "explicit" .Values.s3.auth.secretKey "Release" .Release) }}
