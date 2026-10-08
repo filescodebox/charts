@@ -2,8 +2,8 @@ apiVersion: v2
 name: pigeonbox
 description: pigeonbox 文件快递柜 — 匿名口令分享文本/文件（前后端分离部署：frontend nginx 静态+反代 / server API）
 type: application
-version: 2.0.3
-appVersion: "v0.15.5"
+version: 2.0.4
+appVersion: "v0.15.6"
 kubeVersion: ">=1.22.0-0"
 home: https://github.com/pigeonbox/pigeonbox
 sources:
