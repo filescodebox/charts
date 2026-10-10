@@ -78,10 +78,14 @@ jobs:
       # PAT 的 push 才会触发 on:push 的 Release Charts 工作流(GITHUB_TOKEN 被 GitHub
       # 防递归限制静默跳过——chart 1.3.12/13/14 从未发版的根因)。RELEASE_PAT 缺失
       # 或失效必须在此处响,而不是等「提交落库、永不发版」。
+      # 2026-10-10: main 分支保护要求必需检查(非管理员直推被 GH006 拒)——先试直推
+      # (token 有旁路权限时最快),失败则降级 PR 流:等 checks 绿后合并,合并落 main
+      # 即触发 Release Charts 发版(同一效果,不再依赖旁路权限)。
       - name: Commit and push(RELEASE_PAT,触发发版)
         if: steps.align.outputs.changed == 'true'
         env:
           PAT: ${{ secrets.RELEASE_PAT }}
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
         run: |
           if [ -z "$PAT" ]; then
             echo "::error::缺 secret RELEASE_PAT——PAT push 才能触发 Release Charts(GITHUB_TOKEN 不触发工作流)。Settings→Secrets→Actions 配置后重跑。"
@@ -92,7 +96,23 @@ jobs:
           git remote set-url origin "https://x-access-token:${PAT}@github.com/${{ github.repository }}.git"
           git add charts/pigeonbox/Chart.yaml
           git commit -m "chore(release): appVersion → ${{ steps.ver.outputs.app }}（chart ${{ steps.chart.outputs.next }}，组件发版自动对齐）"
-          git push
+          if git push origin HEAD:main 2>/dev/null; then
+            echo "直推 main 成功(RELEASE_PAT 具备旁路权限)"
+            exit 0
+          fi
+          echo "直推被分支保护拒绝,降级 PR 流"
+          BR="chore/appversion-${{ steps.ver.outputs.app }}"
+          git push -f origin "HEAD:refs/heads/$BR"
+          PR=$(gh pr list -R "${{ github.repository }}" --head "$BR" --state open --json number --jq '.[0].number')
+          if [ -z "$PR" ]; then
+            PR=$(gh pr create -R "${{ github.repository }}" --base main --head "$BR" \
+              --title "chore(release): appVersion → ${{ steps.ver.outputs.app }}" \
+              --body "组件发版自动对齐(chart ${{ steps.chart.outputs.next }})。分支保护要求必需检查,自动改 PR 流;合并落 main 即触发 Release Charts 发版。")
+            PR=$(echo "$PR" | grep -oE '[0-9]+$')
+          fi
+          gh pr checks "$PR" -R "${{ github.repository }}" --watch --fail-fast >/dev/null 2>&1 || {
+            echo "::error::PR #$PR checks 未全绿,不合并(发版链暂停,修复后重跑补发检查)"; exit 1; }
+          gh pr merge "$PR" -R "${{ github.repository }}" --squash --delete-branch
 
       # 幂等兜底:appVersion 已对齐但目标 chart Release 缺失(历史断链/发版失败) → 显式补发
       - name: 补发检查(release 缺失才触发)
