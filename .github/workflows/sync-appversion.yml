@@ -110,6 +110,16 @@ jobs:
               --body "组件发版自动对齐(chart ${{ steps.chart.outputs.next }})。分支保护要求必需检查,自动改 PR 流;合并落 main 即触发 Release Charts 发版。")
             PR=$(echo "$PR" | grep -oE '[0-9]+$')
           fi
+          # checks 登记竞态: PR 刚开时 gh pr checks 会以"无 checks"秒退非零——
+          # 先轮询等登记再 watch(2026-10-10 v0.15.11 首跑实测)
+          ok=""
+          for _ in 1 2 3 4 5 6; do
+            sleep 20
+            if gh pr checks "$PR" -R "${{ github.repository }}" >/dev/null 2>&1; then ok=1; break; fi
+            STATE=$(gh pr view "$PR" -R "${{ github.repository }}" --json mergeStateStatus --jq .mergeStateStatus)
+            [ "$STATE" = "CLEAN" ] && { ok=1; break; }
+          done
+          [ -n "$ok" ] || { echo "::error::PR #$PR checks 迟迟未登记"; exit 1; }
           gh pr checks "$PR" -R "${{ github.repository }}" --watch --fail-fast >/dev/null 2>&1 || {
             echo "::error::PR #$PR checks 未全绿,不合并(发版链暂停,修复后重跑补发检查)"; exit 1; }
           gh pr merge "$PR" -R "${{ github.repository }}" --squash --delete-branch
